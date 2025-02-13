@@ -9,3 +9,11 @@ content-type: :jType
   "session_id": "session 1",
 	"thread_id": "thread_1"
 }
+# api for agent message
+POST http://:host/messages
+content-type: :jType
+{
+  "message": "what is best features? ",
+  "session_id": "session 1",
+	"thread_id": "thread_1"
+}

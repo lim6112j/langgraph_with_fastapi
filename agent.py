@@ -75,6 +75,7 @@ graph_builder.add_edge(START, "chatbot")
 memory = MemorySaver()
 graph = graph_builder.compile(checkpointer=memory)
 def stream_graph_updates(message: str, config: Dict):
+    result: str
     for event in graph.stream(
             {"messages": [{"role": "user", "content": message}]},
             config,
@@ -82,10 +83,10 @@ def stream_graph_updates(message: str, config: Dict):
     ):
         if "messages" in event:
                 event["messages"][-1].pretty_print()
+                result = event["messages"][-1]
+    return result.content
 
 def run_agent(message: str, session_id: Union[str, None] = None, thread_id: Union[str, None] = "thread_1"):
     config = {"configurable": {"thread_id": thread_id}}
 
-    stream_graph_updates(message, config)
-
-    return graph.get_state(config)
+    return stream_graph_updates(message, config)

@@ -2,15 +2,27 @@ from typing import Union
 from fastapi import FastAPI, status
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse
+from agent import run_agent
 app = FastAPI()
+class Message(BaseModel):
+    message: str
+    session_id: str
+    thread_id: Union[str, None] = None
+
+@app.post("/messages", status_code=status.HTTP_201_CREATED)
+async def create_message(message: Message):
+    response = run_agent(message.message, message.session_id, message.thread_id)
+    return {"response": response}
 
 class Item(BaseModel):
     name: str
     price: float
     is_offer: Union[bool, None] = None
 items = [{1: {"name": "foo", "price": 5.0}}, {2: {"name": "bar", "price": 3.0}}, {3: {"name": "baz", "price": 9.5}}]
+
 @app.get("/")
 def read_root():
+    run_agent()
     return {"hello": "world"}
 
 @app.get("/items/{item_id}")

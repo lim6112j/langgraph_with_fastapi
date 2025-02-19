@@ -72,6 +72,113 @@ def transcribe(audio_filepath):
     return result["text"]
 
 
-record_audio()
-prompt = transcribe("./prompt.wav")
-get_response(prompt)
+# record_audio()
+# prompt = transcribe("./prompt.wav")
+# print(prompt)
+# print(get_response(prompt))
+
+
+# task
+import pandas as pd
+from datetime import datetime
+import tools
+# create an empty data frame for task database
+tasks_df = pd.DataFrame(columns=['task', 'status', 'creation_date', 'completed_date'])
+# print(tasks_df)
+
+# Tool for adding a task
+def add_task(task_description):
+    """
+    Add a task to the tasks database.
+    """
+    new_task = pd.DataFrame({
+        'task': [task_description],
+        'status': ['Not Started'],
+        'creation_date': [datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
+        'completed_date': [None]
+    })
+    global tasks_df
+    tasks_df = pd.concat([tasks_df, new_task], ignore_index=True)
+
+    return tasks_df
+
+# create tasks in a backlog task db
+tool_add_tasks_to_db = tools.tools[3]
+# print(tool_add_tasks_to_db)
+
+def get_response_with_tools(prompt):
+    response = ollama.chat(
+        model='llama3.2',
+        messages=[{'role': 'user', 'content': prompt}],
+        tools=[tool_add_tasks_to_db])
+    # process tool calls if present
+    if 'tool_calls' in response['message']:
+        for tool_call in response['message']['tool_calls']:
+            if tool_call['function']['name'] == 'add_task':
+                task_description = tool_call['function']['arguments']['task_description']
+                add_task(task_description)
+                print(f"Task added: {task_description}")
+    else:
+        return response['message']['content']
+
+# get_response_with_tools("Create a task to create a local voice AI assistant")
+# print(tasks_df)
+
+import os
+import http.client
+import urllib.parse
+def create_file(filename, content):
+    with open(filename, 'w') as file:
+        file.write(content)
+    return f"File {filename} created successfully"
+
+def read_file(filename):
+    with open(filename, 'r') as file:
+        return file.read()
+
+def edit_file(filename, content):
+    with open(filename, 'w') as file:
+        file.write(content)
+    return f"File {filename} edited successfully"
+
+def delete_file(filename):
+    os.remove(filename)
+    return f"File {filename} deleted successfully"
+
+# Creating tasks in a backlog task db
+def get_response_with_tools(prompt):
+    response = ollama.chat(model='llama3.2',
+                           messages=[{'role': 'user', 'content': prompt}],
+                           tools=tools.tools)
+    # Process tool calls if present
+    if 'tool_calls' in response['message']:
+        for tool_call in response['message']['tool_calls']:
+            if tool_call['function']['name'] == 'add_task':
+                task_description = tool_call['function']['arguments']['task_description']
+                add_task(task_description)
+                print(f"Task added: {task_description}")
+            elif tool_call['function']['name'] == 'create_file':
+                print("Creating file...")
+                filename = tool_call['function']['arguments']['filename']
+                content = tool_call['function']['arguments']['content']
+                create_file(filename, content)
+                print(f"File created: {filename}")
+            elif tool_call['function']['name'] == 'read_file':
+                print("Reading file...")
+                filename = tool_call['function']['arguments']['filename']
+                print(f"file name problem {filename}")
+                content = read_file(filename)
+                print(f"File content: {content}")
+            elif tool_call['function']['name'] == 'delete_file':
+                print("Deleting file...")
+                filename = tool_call['function']['arguments']['filename']
+                delete_file(filename)
+                print(f"File deleted: {filename}")
+    else:
+        return response['message']['content']
+#get_response_with_tools("Create a task to create a local voice AI assiatant")
+#get_response_with_tools("Create a task for Creating a file called 'test.txt' with the content 'Hello, World! and do the task")
+record_audio(duration=5)
+prompt = transcribe('./prompt.wav')
+get_response_with_tools(prompt)
+print(tasks_df)

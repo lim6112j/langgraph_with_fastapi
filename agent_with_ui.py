@@ -112,8 +112,8 @@ demo = gr.Interface(
         gr.Textbox(label="Transcription"),
         gr.Textbox(label="AI Response"),
     ],
-    title="Whisper Large V3 Turbo: Transcribe Audio and Get AI Response",
-    description="Transcribe audio inputs and get AI responses. Thanks to HuggingFace and Ollama.",
+    title="Ciel AI Agent: Transcribe Audio and Get AI Routing",
+    description="Ciel the leading MOD, DRT Service Provider.",
     allow_flagging="never",
 )
 

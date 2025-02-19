@@ -104,22 +104,73 @@ def run_agent(audio_input, session_id: Union[str, None] = None, thread_id: Union
 
 import gradio as gr
 
+# airbnb data
+from datasets import load_dataset
+import plotly.graph_objects as go
+
+dataset = load_dataset("gradio/NYC-Airbnb-Open-Data", split="train")
+df = dataset.to_pandas()
+
+def filter_map(min_price, max_price, boroughs):
+    new_df = df[(df['neighbourhood_group'].isin(boroughs)) &
+            (df['price'] > min_price) & (df['price'] < max_price)]
+    names = new_df["name"].tolist()
+    prices = new_df["price"].tolist()
+    text_list = [(names[i], prices[i]) for i in range(0, len(names))]
+    # map figure
+    fig = go.Figure(go.Scattermapbox(
+        customdata=text_list,
+        lat=new_df['latitude'].tolist(),
+        lon=new_df['longitude'].tolist(),
+        mode='markers',
+        marker=go.scattermapbox.Marker(
+            size=6
+        ),
+        hoverinfo="text",
+        hovertemplate='<b>Name</b>: %{customdata[0]}<br><b>Price</b>: $%{customdata[1]}'
+    ))
+
+    fig.update_layout(
+        mapbox_style="open-street-map",
+        hovermode='closest',
+        mapbox=dict(
+            bearing=0,
+            center=go.layout.mapbox.Center(
+                lat=40.67,
+                lon=-73.90
+            ),
+            pitch=0,
+            zoom=9
+        ),
+    )
+    return fig
+# ui draw
 with gr.Blocks() as demo:
-    audio_input = gr.Audio(sources=["microphone", "upload"], type="filepath")
-    inputs=[audio_input]
-    outputs=[
-        gr.Textbox(label="Transcription"),
-        gr.Textbox(label="AI Response"),
-    ]
-    clear_btn = gr.Button("Clear")
-    submit_btn = gr.Button("Submit")
+    gr.Markdown("""# Ciel AI Agent for routing with voice""")
+    with gr.Row():
+        with gr.Column():
+            audio_input = gr.Audio(sources=["microphone", "upload"], type="filepath")
+            inputs=[audio_input]
+            outputs=[
+                gr.Textbox(label="Transcription"),
+                gr.Textbox(label="AI Response"),
+            ]
+            with gr.Row():
+                clear_btn = gr.Button("Clear")
+                submit_btn = gr.Button("Submit")
+
+        # tiColumn="Ciel AI Agent: Transcribe Audio and Get AI Routing"
+        # descriColumnon="Ciel the leading MOD, DRT Service Provider."
+        # allow_Columngging="never"
+        with gr.Column():
+            min_price = gr.Number(value=250, label="Minimum Price")
+            max_price = gr.Number(value=1000, label="Maximum Price")
+            boroughs = gr.CheckboxGroup(choices=["Queens", "Brooklyn", "Manhattan", "Bronx", "Staten Island"], value=["Queens", "Brooklyn"], label="Select Boroughs:")
+            btn = gr.Button(value="Update Filter")
+            map = gr.Plot()
     clear_btn.click(lambda :None, None, audio_input)
     submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")
-   # title="Ciel AI Agent: Transcribe Audio and Get AI Routing"
-   # description="Ciel the leading MOD, DRT Service Provider."
-   # allow_flagging="never"
-
-    with gr.Row():
-        btn1 = gr.Button("hello")
+    demo.load(filter_map, [min_price, max_price, boroughs], map)
+    btn.click(filter_map, [min_price, max_price, boroughs], map)
 
 demo.launch()

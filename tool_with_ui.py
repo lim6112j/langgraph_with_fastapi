@@ -137,34 +137,37 @@ def get_response(prompt):
         messages=[{'role': 'user', 'content': prompt}],
         tools=tools,
     )
-    tool_calls = response['message']['tool_calls']
+
     results = []
     task_table = None
+    if 'tool_calls' in response['message']:
+        tool_calls = response['message']['tool_calls']
+        for tool_call in tool_calls:
+            function_name = tool_call['function']['name']
+            arguments = tool_call['function']['arguments']
 
-    for tool_call in tool_calls:
-        function_name = tool_call['function']['name']
-        arguments = tool_call['function']['arguments']
-
-        if function_name == 'create_file':
-            create_file(arguments['filename'], arguments['content'])
-            results.append(f"Created file: {arguments['filename']}")
-#        elif function_name == 'read_file':
-#            content = read_file(arguments['filename'])
-#            results.append(f"Read file: {arguments['filename']}, Content: {content}")
-        elif function_name == 'delete_file':
-            delete_file(arguments['filename'])
-            results.append(f"Deleted file: {arguments['filename']}")
-        elif function_name == 'create_task_table':
-            task_table = create_task_table(arguments['tasks'], arguments['statuses'], arguments['priorities'])
-            results.append(f"Created task table:\n{task_table.to_string()}")
-        elif function_name == 'manage_tasks':
-            if task_table is not None:
-                task_table, result = manage_tasks(task_table, arguments['action'], arguments['task_index'])
-                results.append(f"Task management result: {result}")
-                results.append(f"Updated task table:\n{task_table.to_string()}")
-            else:
-                results.append("Error: Task table not created yet.")
-    results.append(response['message']['content'])
+            if function_name == 'create_file':
+                create_file(arguments['filename'], arguments['content'])
+                results.append(f"Created file: {arguments['filename']}")
+                #        elif function_name == 'read_file':
+                #            content = read_file(arguments['filename'])
+                #            results.append(f"Read file: {arguments['filename']}, Content: {content}")
+            elif function_name == 'delete_file':
+                delete_file(arguments['filename'])
+                results.append(f"Deleted file: {arguments['filename']}")
+            elif function_name == 'create_task_table':
+                task_table = create_task_table(arguments['tasks'], arguments['statuses'], arguments['priorities'])
+                results.append(f"Created task table:\n{task_table.to_string()}")
+            elif function_name == 'manage_tasks':
+                if task_table is not None:
+                    task_table, result = manage_tasks(task_table, arguments['action'], arguments['task_index'])
+                    results.append(f"Task management result: {result}")
+                    results.append(f"Updated task table:\n{task_table.to_string()}")
+                else:
+                    results.append("Error: Task table not created yet.")
+    else:
+        results.append(response['message']['content'])
+    print(response['message']['content'])
     return results, task_table
 
 pipe = pipeline("automatic-speech-recognition",

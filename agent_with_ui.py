@@ -102,19 +102,24 @@ def run_agent(audio_input, session_id: Union[str, None] = None, thread_id: Union
 
     return transcription, stream_graph_updates(transcription, config)
 
-
 import gradio as gr
 
-demo = gr.Interface(
-    fn=run_agent,
-    inputs=[gr.Audio(sources=["microphone", "upload"], type="filepath")],
+with gr.Blocks() as demo:
+    audio_input = gr.Audio(sources=["microphone", "upload"], type="filepath")
+    inputs=[audio_input]
     outputs=[
         gr.Textbox(label="Transcription"),
         gr.Textbox(label="AI Response"),
-    ],
-    title="Ciel AI Agent: Transcribe Audio and Get AI Routing",
-    description="Ciel the leading MOD, DRT Service Provider.",
-    allow_flagging="never",
-)
+    ]
+    clear_btn = gr.Button("Clear")
+    submit_btn = gr.Button("Submit")
+    clear_btn.click(lambda :None, None, audio_input)
+    submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")
+   # title="Ciel AI Agent: Transcribe Audio and Get AI Routing"
+   # description="Ciel the leading MOD, DRT Service Provider."
+   # allow_flagging="never"
+
+    with gr.Row():
+        btn1 = gr.Button("hello")
 
 demo.launch()

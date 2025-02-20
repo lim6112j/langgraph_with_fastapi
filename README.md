@@ -10,6 +10,8 @@ source .venv/bin/activate
 
 fastapi dev server.py
 
+use restapi 강남역, 양재역 
+
 * run audio input
 
 python whisper.py

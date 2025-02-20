@@ -11,35 +11,6 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.types import Command, interrupt
 
-def human_assistance(
-        name: str, birthday: str, tool_call_id: Annotated[str, InjectedToolCallId]
-) -> str:
-    """Request assistance from a human"""
-    human_response = interrupt(
-        {
-            "question": "Is this correct:",
-            "name": name,
-            "birthday": birthday,
-        },
-    )
-    # If the information is correct, upddate the state as-is.
-    if human_response.get("correct", "").lower().startswith("y"):
-        verified_name = name
-        verified_birthday = birthday
-        response = "Correct"
-    # otherwise, receive information from the human receiver.
-    else:
-        verified_name = human_response.get("name", name)
-        verified_birthday = human_response.get("birthday", birthday)
-        response = f"Made a correction: {human_response}"
-    # This time we explicitly update the state with a ToolMessage inside the tool
-    state_update = {
-        "name": verified_name,
-        "birthday": verified_birthday,
-        "messages": [ToolMessage(response, tool_call_id=tool_call_id)],
-    }
-    # We return a Command object in the tool to update our state.
-    return Command(update=state_update)
 
 from langchain_anthropic import ChatAnthropic
 from langchain_community.tools.tavily_search import TavilySearchResults
@@ -48,9 +19,22 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from dotenv import load_dotenv
 load_dotenv()
-
+@tool
+def get_routes(self, text: str) -> str:
+    """ Get route information with 2 location data in text param."""
+    import json
+    params = json.loads(text)
+    fields = dict(params)
+    OSRM_API = os.getenv("OSRM_API")
+    # http://localhost:5001/route/v1/driving/127.919323,36.809656;128.080629,36.699223?steps=true
+    conn = http.client.HTTPConnection(OSRM_API, 5001)
+    routes = conn.request("GET", "/route/v1/driving/" + fields["locations"] + "?steps=true")
+    if not routes:
+        return "No routes found."
+    # response = "\n".join([f"{route['id']}: {route['title']}" for route in routes])
+    return f"Available routes:\n{routes}"
 tool = TavilySearchResults(max_results=2)
-tools = [tool, human_assistance]
+tools = [get_routes]
 llm = ChatAnthropic(model="claude-3-5-sonnet-20240620")
 llm_with_tools = llm.bind_tools(tools)
 

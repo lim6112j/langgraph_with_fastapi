@@ -1,5 +1,5 @@
 :host = localhost:8000
-
+:osrm = localhost:5001
 :jType = application/json
 # api for agent message
 POST http://:host/messages
@@ -25,3 +25,22 @@ content-type: :jType
   "session_id": "session 1",
 	"thread_id": "thread_1"
 }
+
+# route api for agent message
+POST http://:host/messages
+content-type: :jType
+{
+  "message": "양재역까지 가는 길 알려줘",
+  "session_id": "session 1",
+	"thread_id": "thread_1"
+}
+# route api for agent message
+POST http://:host/messages
+content-type: :jType
+{
+  "message": "나는 지금 강남역이야",
+  "session_id": "session 1",
+	"thread_id": "thread_1"
+}
+# osrm test
+GET http://:osrm/route/v1/driving/127.027458,37.497467;127.033497,37.485076?steps=true

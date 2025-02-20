@@ -48,9 +48,37 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from dotenv import load_dotenv
 load_dotenv()
+import pandas as pd
 
+df = pd.read_csv("./data/locations.csv")
+names = df["name"].tolist()
+lons = df["longitude"].tolist()
+lats = df["latitude"].tolist()
+loc_dict = {names[i]: (lons[i], lats[i]) for i in range(0, len(names))}
+@tool
+def get_routes(start: str, destination: str) -> str:
+    """ Get route information from start to destination."""
+    start_loc = str(loc_dict[start][0]) + ',' + str(loc_dict[start][1])
+    destination_loc = str(loc_dict[destination][0]) + ',' + str(loc_dict[destination][1])
+    locations = start_loc + ';' + destination_loc
+    print(locations)
+    import os
+    import http.client
+    OSRM_API = os.getenv("OSRM_API")
+    # http://localhost:5001/route/v1/driving/127.919323,36.809656;128.080629,36.699223?steps=true
+    conn = http.client.HTTPConnection(OSRM_API, 5001)
+    conn.request("GET", "/route/v1/driving/" + locations + "?steps=true")
+    res = conn.getresponse()
+    routes = res.read()
+    conn.close()
+    print(f"osrm response routes data {routes}")
+    if not routes:
+        return "No routes found."
+    # response = "\n".join([f"{route['id']}: {route['title']}" for route in routes])
+    return f"Available routes:\n{routes}"
 tool = TavilySearchResults(max_results=2)
-tools = [tool, human_assistance]
+#tools = [tool, human_assistance]
+tools = [get_routes]
 llm = ChatAnthropic(model="claude-3-5-sonnet-20240620")
 llm_with_tools = llm.bind_tools(tools)
 

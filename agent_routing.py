@@ -20,12 +20,13 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from dotenv import load_dotenv
 load_dotenv()
 import pandas as pd
-
+import json
 df = pd.read_csv("./data/locations.csv")
 names = df["name"].tolist()
 lons = df["longitude"].tolist()
 lats = df["latitude"].tolist()
 loc_dict = {names[i]: (lons[i], lats[i]) for i in range(0, len(names))}
+routes = [{"legs": [{"steps": [{"maneuver": {"location": [1, 2]}}] }]}]
 @tool
 def get_routes(start: str, destination: str) -> str:
     """ Get route information from start to destination."""
@@ -46,13 +47,14 @@ def get_routes(start: str, destination: str) -> str:
     if not routes:
         return "No routes found."
     # response = "\n".join([f"{route['id']}: {route['title']}" for route in routes])
-    import json
+
     json_str = routes.decode('utf8').replace("'", '"')
     json_routes = json.loads(json_str)
+    routes = json_routes['routes']
     print(json_routes['routes'])
     print(f"\nlength of routes : {len(json_routes['routes'])}")
-    fig = draw_route(loc_dict[start], loc_dict[destination])
-    fig.show()
+#    fig = draw_route(loc_dict[start], loc_dict[destination])
+#    fig.show()
     return f"Available routes:\n{routes}"
 
 tool = TavilySearchResults(max_results=2)
@@ -139,6 +141,40 @@ def draw_route(start, destination):
         ),
     )
     return fig
+def draw_route_list():
+# loc_list : routes
+    loc_list = routes[0]
+    print(f"routes[0] : {loc_list}")
+    lons = []
+    lats = []
+    for leg in loc_list['legs']:
+       for step in leg['steps']:
+#           print(f"maneuver data : {step[''maneuver']}")
+           location = (step['maneuver'])['location']
+           lons.append(location[0])
+           lats.append(location[1])
+    print(f"\nlats from routes data => {lats}\n")
+    fig = go.Figure().add_trace(go.Scattermapbox(
+        mode='lines',
+        lon = lons,
+        lat = lats,
+        line_color='green',
+        name='routes calculated'
+    ))
+    fig.update_layout(
+        mapbox_style="open-street-map",
+        hovermode='closest',
+        mapbox=dict(
+            bearing=0,
+            center=go.layout.mapbox.Center(
+                lat=37.497467,
+                lon=127.027458
+            ),
+            pitch=0,
+            zoom=15
+        ),
+    )
+    return fig
 
 def filter_map():
     names = df["name"].tolist()
@@ -199,6 +235,6 @@ with gr.Blocks() as demo:
     clear_btn.click(lambda :None, None, audio_input)
     submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")
     demo.load(filter_map, [], map)
-    btn.click(filter_map, [], map)
+    btn.click(draw_route_list, [], map)
 
 demo.launch()

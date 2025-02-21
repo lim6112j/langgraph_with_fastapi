@@ -7,7 +7,7 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
     routes: list
 
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import ToolMessage, SystemMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.types import Command, interrupt
 
@@ -78,11 +78,36 @@ tools = [get_routes]
 from langchain_ollama import ChatOllama
 LLM_MODEL = os.getenv("LLM_MODEL")
 
-llm = ChatOllama(model="llama3.2") if LLM_MODEL == "llama" else ChatAnthropic(model="claude-3-5-sonnet-20240620")
+llm = ChatOllama(model="llama3.2", temperature=0) if LLM_MODEL == "llama" else ChatAnthropic(model="claude-3-5-sonnet-20240620")
 llm_with_tools = llm.bind_tools(tools)
 
+# template = """Your job is to get information from a user about two location and to explain the route with tool `get_routes`
+
+# You should get the following information from them:
+
+# - What the objective of the prompt is
+# - What variables will be passed into the prompt template
+# - Any constraints for what the output should NOT do
+# - Any requirements that the output MUST adhere to
+
+# If you are not able to discern this info, ask them to clarify! Do not attempt to wildly guess.
+
+# After you are able to discern all the information, call the relevant tool."""
+
+template = """You are a car navigation guide, Your job is to get information from a user about two location and to explain the route with tool `get_routes`
+
+If you are not able to discern two location name, ask them to clarify! Do not attempt to wildly guess.
+
+After you are able to discern all the information, call the relevant tool."""
+
+def get_messages_info(messages):
+    return [SystemMessage(content=template)] + messages
+
 def chatbot(state: State):
-    message = llm_with_tools.invoke(state["messages"])
+    messages = get_messages_info(state["messages"])
+    print(f"\nstate[messages] => {state['messages']}\n")
+    print(f"\n[messages] => {messages}\n")
+    message = llm_with_tools.invoke(messages)
     assert len(message.tool_calls) <= 1
     return {"messages": [message]}
 

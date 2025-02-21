@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import pandas as pd
 import json
+import os
 df = pd.read_csv("./data/locations.csv")
 names = df["name"].tolist()
 lons = df["longitude"].tolist()
@@ -29,12 +30,18 @@ loc_dict = {names[i]: (lons[i], lats[i]) for i in range(0, len(names))}
 routes = [{"legs": [{"steps": [{"maneuver": {"location": [1, 2]}}] }]}]
 @tool
 def get_routes(state: State, start: str, destination: str,  tool_call_id: Annotated[str, InjectedToolCallId]):
-    """ Get route information from start to destination."""
+    """ Get route information from start to destination.
+    after gather start and destination from user,
+    call this function for route data
+    Args:
+       start (str): start location name
+       destination (str): destination location name
+    """
     start_loc = str(loc_dict[start][0]) + ',' + str(loc_dict[start][1])
     destination_loc = str(loc_dict[destination][0]) + ',' + str(loc_dict[destination][1])
     locations = start_loc + ';' + destination_loc
 #    print(locations)
-    import os
+
     import http.client
     OSRM_API = os.getenv("OSRM_API")
     # http://localhost:5001/route/v1/driving/127.919323,36.809656;128.080629,36.699223?steps=true
@@ -61,14 +68,17 @@ def get_routes(state: State, start: str, destination: str,  tool_call_id: Annota
          update={
              "routes": routes,
              "messages": [
-                 ToolMessage(json_str, tool_call_id=tool_call_id)
+                 ToolMessage(routes_bytes, tool_call_id=tool_call_id)
              ],
          }
     )
 
 tool = TavilySearchResults(max_results=2)
 tools = [get_routes]
-llm = ChatAnthropic(model="claude-3-5-sonnet-20240620")
+from langchain_ollama import ChatOllama
+LLM_MODEL = os.getenv("LLM_MODEL")
+
+llm = ChatOllama(model="llama3.2") if LLM_MODEL == "llama" else ChatAnthropic(model="claude-3-5-sonnet-20240620")
 llm_with_tools = llm.bind_tools(tools)
 
 def chatbot(state: State):

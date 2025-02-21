@@ -1,12 +1,12 @@
-from typing import Annotated, Union, Dict
+from typing import Annotated, Union, Dict, List
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
-
+from langgraph.types import Command
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
-    name: str
-    birthday: str
+    routes: list
+
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.types import Command, interrupt
@@ -28,12 +28,12 @@ lats = df["latitude"].tolist()
 loc_dict = {names[i]: (lons[i], lats[i]) for i in range(0, len(names))}
 routes = [{"legs": [{"steps": [{"maneuver": {"location": [1, 2]}}] }]}]
 @tool
-def get_routes(start: str, destination: str) -> str:
+def get_routes(state: State, start: str, destination: str,  tool_call_id: Annotated[str, InjectedToolCallId]):
     """ Get route information from start to destination."""
     start_loc = str(loc_dict[start][0]) + ',' + str(loc_dict[start][1])
     destination_loc = str(loc_dict[destination][0]) + ',' + str(loc_dict[destination][1])
     locations = start_loc + ';' + destination_loc
-    print(locations)
+#    print(locations)
     import os
     import http.client
     OSRM_API = os.getenv("OSRM_API")
@@ -41,21 +41,30 @@ def get_routes(start: str, destination: str) -> str:
     conn = http.client.HTTPConnection(OSRM_API, 5001)
     conn.request("GET", "/route/v1/driving/" + locations + "?steps=true")
     res = conn.getresponse()
-    routes = res.read()
+    routes_bytes = res.read()
     conn.close()
 #    print(f"osrm response routes data {routes}")
-    if not routes:
+    if not routes_bytes:
         return "No routes found."
     # response = "\n".join([f"{route['id']}: {route['title']}" for route in routes])
 
-    json_str = routes.decode('utf8').replace("'", '"')
+    json_str = routes_bytes.decode('utf8').replace("'", '"')
     json_routes = json.loads(json_str)
     routes = json_routes['routes']
-    print(json_routes['routes'])
-    print(f"\nlength of routes : {len(json_routes['routes'])}")
+
+#    print(json_routes['routes'])
+#    print(f"\nlength of routes : {len(json_routes['routes'])}")
 #    fig = draw_route(loc_dict[start], loc_dict[destination])
 #    fig.show()
-    return f"Available routes:\n{routes}"
+#    return f"Available routes:\n{routes}"
+    return Command(
+         update={
+             "routes": routes,
+             "messages": [
+                 ToolMessage(json_str, tool_call_id=tool_call_id)
+             ],
+         }
+    )
 
 tool = TavilySearchResults(max_results=2)
 tools = [get_routes]
@@ -100,7 +109,6 @@ pipe = pipeline("automatic-speech-recognition",
                 "openai/whisper-large-v3-turbo",
                 torch_dtype=torch.float16,
                 device="mps")
-
 def run_agent(audio_input, session_id: Union[str, None] = None, thread_id: Union[str, None] = "thread_1"):
     if audio_input is None:
         raise gr.Error("No audio file")
@@ -143,6 +151,10 @@ def draw_route(start, destination):
     return fig
 def draw_route_list():
 # loc_list : routes
+    config = {"configurable": {"thread_id": "thread_1"}}
+    state = graph.get_state(config)
+    routes = state.values['routes']
+    print(f"\nstate => {routes}\n")
     loc_list = routes[0]
     print(f"routes[0] : {loc_list}")
     lons = []
@@ -171,7 +183,7 @@ def draw_route_list():
                 lon=127.027458
             ),
             pitch=0,
-            zoom=15
+            zoom=13
         ),
     )
     return fig
@@ -204,7 +216,7 @@ def filter_map():
                 lon=127.027458
             ),
             pitch=0,
-            zoom=9
+            zoom=13
         ),
     )
     return fig
@@ -227,9 +239,6 @@ with gr.Blocks() as demo:
         # descriColumnon="Ciel the leading MOD, DRT Service Provider."
         # allow_Columngging="never"
         with gr.Column():
-            min_price = gr.Number(value=250, label="Minimum Price")
-            max_price = gr.Number(value=1000, label="Maximum Price")
-            boroughs = gr.CheckboxGroup(choices=["Queens", "Brooklyn", "Manhattan", "Bronx", "Staten Island"], value=["Queens", "Brooklyn"], label="Select Boroughs:")
             btn = gr.Button(value="Update Filter")
             map = gr.Plot()
     clear_btn.click(lambda :None, None, audio_input)

@@ -42,10 +42,17 @@ def get_routes(start: str, destination: str) -> str:
     res = conn.getresponse()
     routes = res.read()
     conn.close()
-    print(f"osrm response routes data {routes}")
+#    print(f"osrm response routes data {routes}")
     if not routes:
         return "No routes found."
     # response = "\n".join([f"{route['id']}: {route['title']}" for route in routes])
+    import json
+    json_str = routes.decode('utf8').replace("'", '"')
+    json_routes = json.loads(json_str)
+    print(json_routes['routes'])
+    print(f"\nlength of routes : {len(json_routes['routes'])}")
+    fig = draw_route(loc_dict[start], loc_dict[destination])
+    fig.show()
     return f"Available routes:\n{routes}"
 
 tool = TavilySearchResults(max_results=2)
@@ -109,6 +116,29 @@ import plotly.graph_objects as go
 import pandas as pd
 
 df = pd.read_csv("./data/locations.csv")
+def draw_route(start, destination):
+
+    fig = go.Figure().add_trace(go.Scattermapbox(
+        mode='lines',
+        lon = [start[0], destination[0]],
+        lat = [start[1], destination[1]],
+        line_color='green',
+        name='routes calculated'
+    ))
+    fig.update_layout(
+        mapbox_style="open-street-map",
+        hovermode='closest',
+        mapbox=dict(
+            bearing=0,
+            center=go.layout.mapbox.Center(
+                lat=37.497467,
+                lon=127.027458
+            ),
+            pitch=0,
+            zoom=15
+        ),
+    )
+    return fig
 
 def filter_map():
     names = df["name"].tolist()

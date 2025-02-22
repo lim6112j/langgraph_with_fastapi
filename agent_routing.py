@@ -105,8 +105,8 @@ def get_messages_info(messages):
 
 def chatbot(state: State):
     messages = get_messages_info(state["messages"])
-    print(f"\nstate[messages] => {state['messages']}\n")
-    print(f"\n[messages] => {messages}\n")
+#    print(f"\nstate[messages] => {state['messages']}\n")
+#    print(f"\n[messages] => {messages}\n")
     message = llm_with_tools.invoke(messages)
     assert len(message.tool_calls) <= 1
     return {"messages": [message]}
@@ -188,41 +188,46 @@ def draw_route_list():
 # loc_list : routes
     config = {"configurable": {"thread_id": "thread_1"}}
     state = graph.get_state(config)
-    routes = state.values['routes']
-    print(f"\nstate => {routes}\n")
-    loc_list = routes[0]
-    print(f"routes[0] : {loc_list}")
-    lons = []
-    lats = []
-    for leg in loc_list['legs']:
-       for step in leg['steps']:
-#           print(f"maneuver data : {step[''maneuver']}")
-           location = (step['maneuver'])['location']
-           lons.append(location[0])
-           lats.append(location[1])
-    print(f"\nlats from routes data => {lats}\n")
-    fig = go.Figure().add_trace(go.Scattermapbox(
-        mode='lines',
-        lon = lons,
-        lat = lats,
-        line_color='green',
-        name='routes calculated'
-    ))
-    fig.update_layout(
-        mapbox_style="open-street-map",
-        hovermode='closest',
-        mapbox=dict(
-            bearing=0,
-            center=go.layout.mapbox.Center(
-                lat=37.497467,
-                lon=127.027458
-            ),
-            pitch=0,
-            zoom=13
-        ),
-    )
-    return fig
 
+
+
+    try:
+        routes = state.values['routes']
+        print(f"\nstate => {routes}\n")
+        loc_list = routes[0]
+        print(f"routes[0] : {loc_list}")
+        lons = []
+        lats = []
+        for leg in loc_list['legs']:
+            for step in leg['steps']:
+                #           print(f"maneuver data : {step[''maneuver']}")
+                location = (step['maneuver'])['location']
+                lons.append(location[0])
+                lats.append(location[1])
+                print(f"\nlats from routes data => {lats}\n")
+                fig = go.Figure().add_trace(go.Scattermapbox(
+                    mode='lines',
+                    lon = lons,
+                    lat = lats,
+                    line_color='green',
+                    name='routes calculated'
+                ))
+                fig.update_layout(
+                    mapbox_style="open-street-map",
+                    hovermode='closest',
+                    mapbox=dict(
+                        bearing=0,
+                        center=go.layout.mapbox.Center(
+                            lat=37.497467,
+                            lon=127.027458
+                        ),
+                        pitch=0,
+                        zoom=13
+                    ),
+                )
+        return fig
+    except:
+        print("routes not ready")
 def filter_map():
     names = df["name"].tolist()
     lons = df["longitude"].tolist()
@@ -261,10 +266,12 @@ with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             audio_input = gr.Audio(sources=["microphone", "upload"], type="filepath")
+            transcript_output = gr.Textbox(label="Transcription")
+            ai_response_output = gr.Textbox(label="AI Response")
             inputs=[audio_input]
             outputs=[
-                gr.Textbox(label="Transcription"),
-                gr.Textbox(label="AI Response"),
+                transcript_output,
+                ai_response_output,
             ]
             with gr.Row():
                 clear_btn = gr.Button("Clear")
@@ -276,6 +283,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             btn = gr.Button(value="Update Filter")
             map = gr.Plot()
+    ai_response_output.change(draw_route_list, [], map)
     clear_btn.click(lambda :None, None, audio_input)
     submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")
     demo.load(filter_map, [], map)

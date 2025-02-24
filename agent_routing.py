@@ -9,7 +9,6 @@ from langgraph.types import interrupt
 
 
 from langchain_anthropic import ChatAnthropic
-from langchain_community.tools.tavily_search import TavilySearchResults
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -21,17 +20,18 @@ from custom_tool.tools import State, get_routes
 from messages.messages import template
 from helper.funcs import get_messages_info
 
-
+# outes data schema example
 routes = [{"legs": [{"steps": [{"maneuver": {"location": [1, 2]}}] }]}]
 
-tool = TavilySearchResults(max_results=2)
 tools = [get_routes]
+# LLM model : LLAMA, Claude
 from langchain_ollama import ChatOllama
 LLM_MODEL = os.getenv("LLM_MODEL")
 
 llm = ChatOllama(model="llama3.2", temperature=0) if LLM_MODEL == "llama" else ChatAnthropic(model="claude-3-5-sonnet-20240620")
 llm_with_tools = llm.bind_tools(tools)
 
+# chatbot node
 def chatbot(state: State):
     messages = get_messages_info(state["messages"])
 #    print(f"\nstate[messages] => {state['messages']}\n")
@@ -40,6 +40,7 @@ def chatbot(state: State):
     assert len(message.tool_calls) <= 1
     return {"messages": [message]}
 
+# link nodes
 graph_builder = StateGraph(State)
 graph_builder.add_node("chatbot", chatbot)
 
@@ -56,6 +57,7 @@ graph_builder.add_edge(START, "chatbot")
 memory = MemorySaver()
 graph = graph_builder.compile(checkpointer=memory)
 
+# helper function for run_agent
 def stream_graph_updates(message: str, config: Dict):
     result: str
     for event in graph.stream(
@@ -74,22 +76,25 @@ pipe = pipeline("automatic-speech-recognition",
                 "openai/whisper-large-v3-turbo",
                 torch_dtype=torch.float16,
                 device="mps")
+
+# handle audio input, TODO: session or user_id setting
 def run_agent(audio_input, session_id: Union[str, None] = None, thread_id: Union[str, None] = "thread_1"):
     if audio_input is None:
         raise gr.Error("No audio file")
     transcription = pipe(audio_input, generate_kwargs={"task": "transcribe"}, return_timestamps=True)["text"]
-
     config = {"configurable": {"thread_id": thread_id}}
-
     return transcription, stream_graph_updates(transcription, config)
 
+# WEB UI draw
 import gradio as gr
 from helper.gradio_func import filter_map
 import plotly.graph_objects as go
 from helper.gradio_func import draw_route_list_closure
-# ui draw
+
+# draw route from list
 def draw_route_list():
     return draw_route_list_closure(graph)
+
 with gr.Blocks() as demo:
     gr.Markdown("""# Ciel AI Agent for routing with voice""")
     with gr.Row():

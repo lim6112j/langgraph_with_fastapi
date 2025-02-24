@@ -107,3 +107,15 @@ def draw_route_list_closure(g):
             print("routes not ready")
 
     return draw_route_list()
+
+def get_menu_list_closure(g):
+    graph = g
+    def get_menus():
+        config = {"configurable": {"thread_id": "thread_1"}}
+        state = graph.get_state(config)
+        try:
+            menus = state.values['menus']
+            print(f"state[menus] : {menus}")
+        except:
+            print("menus not ready")
+    return get_menus()

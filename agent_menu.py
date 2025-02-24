@@ -35,7 +35,7 @@ llm_with_tools = llm.bind_tools(tools)
 def chatbot(state: State):
     messages = get_messages_menu_info(state["messages"])
 #    print(f"\nstate[messages] => {state['messages']}\n")
-    print(f"\n[messages] => {messages}\n")
+#    print(f"\n[messages] => {messages}\n")
     message = llm_with_tools.invoke(messages)
     assert len(message.tool_calls) <= 1
     return {"messages": [message]}
@@ -89,11 +89,11 @@ def run_agent(audio_input, session_id: Union[str, None] = None, thread_id: Union
 import gradio as gr
 from helper.gradio_func import filter_map
 import plotly.graph_objects as go
-from helper.gradio_func import draw_route_list_closure
+from helper.gradio_func import draw_route_list_closure, get_menu_list_closure
 
 # draw route from list
-def draw_route_list():
-    return draw_route_list_closure(graph)
+def get_menu_list():
+    return get_menu_list_closure(graph)
 
 with gr.Blocks() as demo:
     gr.Markdown("""# Ciel AI Agent for routing with voice""")
@@ -115,12 +115,8 @@ with gr.Blocks() as demo:
         # descriColumnon="Ciel the leading MOD, DRT Service Provider."
         # allow_Columngging="never"
         with gr.Column():
-            btn = gr.Button(value="Update Filter")
-            map = gr.Plot()
-    ai_response_output.change(draw_route_list, [], map)
+            menus = gr.Textbox(label="Menus")
+    ai_response_output.change(get_menu_list, [], menus)
     clear_btn.click(lambda :None, None, audio_input)
     submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")
-    demo.load(filter_map, [], map)
-    btn.click(draw_route_list, [], map)
-
 demo.launch()

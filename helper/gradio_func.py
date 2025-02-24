@@ -115,7 +115,8 @@ def get_menu_list_closure(g):
         state = graph.get_state(config)
         try:
             menus = state.values['menus']
-            print(f"state[menus] : {menus}")
+#            print(f"state[menus] : {menus}")
+            return menus
         except:
             print("menus not ready")
     return get_menus()

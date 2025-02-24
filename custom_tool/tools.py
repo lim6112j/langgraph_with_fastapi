@@ -7,15 +7,11 @@ from langchain_core.messages import ToolMessage
 import json
 import pandas as pd
 import os
-df = pd.read_csv("./data/locations.csv")
-names = df["name"].tolist()
-lons = df["longitude"].tolist()
-lats = df["latitude"].tolist()
-loc_dict = {names[i]: (lons[i], lats[i]) for i in range(0, len(names))}
+df = pd.read_csv("./data/menus.csv")
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
-    routes: list
+    menus: list
 
 
 @tool
@@ -62,3 +58,9 @@ def get_routes(state: State, start: str, destination: str,  tool_call_id: Annota
              ],
          }
     )
+@tool
+def get_menus(state: State):
+    """getting menus of restaurant
+    """
+    dict = df.to_dict().values()
+    return f"menus : {dict}"

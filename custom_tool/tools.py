@@ -7,6 +7,7 @@ from langchain_core.messages import ToolMessage
 import json
 import pandas as pd
 import os
+import http.client
 df_menus = pd.read_csv("./data/menus.csv")
 df = pd.read_csv("./data/locations.csv")
 names = df["name"].tolist()
@@ -34,7 +35,7 @@ def get_routes(state: State, start: str, destination: str,  tool_call_id: Annota
     locations = start_loc + ';' + destination_loc
 #    print(locations)
 
-    import http.client
+
     OSRM_API = os.getenv("OSRM_API")
     # http://localhost:5001/route/v1/driving/127.919323,36.809656;128.080629,36.699223?steps=true
     conn = http.client.HTTPConnection(OSRM_API, 5001)
@@ -78,3 +79,18 @@ def get_menus(state: State,tool_call_id: Annotated[str, InjectedToolCallId]):
              ],
          }
     )
+@tool
+def get_data_from_site(state: State, keyword: str):
+    """get web data from website
+    Args: keyword(str): keyword you will search for
+    """
+    try:
+        conn = http.client.HTTPSConnection("namu.wiki")
+        conn.request("GET", "/w/" + keyword)
+        res = conn.getresponse()
+        routes_bytes = res.read()
+        print(f"got data from namuwiki => {routes_bytes}")
+        conn.close()
+    except:
+        routes_bytes = "not found"
+    return f"{routes_bytes}"

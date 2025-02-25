@@ -68,7 +68,7 @@ def get_routes(state: State, start: str, destination: str,  tool_call_id: Annota
 def get_menus(state: State,tool_call_id: Annotated[str, InjectedToolCallId]):
     """getting menus of restaurant
     """
-    dict = df_menus.to_dict().values()
+    dict = df_menus.to_json(orient="records")
     menus = f"{dict}"
     return Command(
          update={

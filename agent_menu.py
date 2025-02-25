@@ -89,14 +89,15 @@ def run_agent(audio_input, session_id: Union[str, None] = None, thread_id: Union
 import gradio as gr
 from helper.gradio_func import filter_map
 import plotly.graph_objects as go
-from helper.gradio_func import draw_route_list_closure, get_menu_list_closure
+from helper.gradio_func import draw_route_list_closure, get_menu_list_closure, get_image_from_url
+import json
 
 # draw route from list
 def get_menu_list():
     return get_menu_list_closure(graph)
 
 with gr.Blocks() as demo:
-    gr.Markdown("""# Ciel AI Agent for routing with voice""")
+    gr.Markdown("""# Ciel AI Agent for Menu-pan with voice""")
     with gr.Row():
         with gr.Column():
             audio_input = gr.Audio(sources=["microphone", "upload"], type="filepath")
@@ -110,12 +111,22 @@ with gr.Blocks() as demo:
             with gr.Row():
                 clear_btn = gr.Button("Clear")
                 submit_btn = gr.Button("Submit")
-
         # tiColumn="Ciel AI Agent: Transcribe Audio and Get AI Routing"
         # descriColumnon="Ciel the leading MOD, DRT Service Provider."
         # allow_Columngging="never"
         with gr.Column():
             menus = gr.Textbox(label="Menus")
+            @gr.render(inputs=menus)
+            def show_images(text: str):
+                if len(text) == 0:
+                    gr.Markdown("no data")
+                else:
+                    json_obj = json.loads(text)
+#                    print(f"gradio read menus: {json_obj[0]}")
+                    for obj in json_obj:
+                        img_url = obj['url']
+                        img = get_image_from_url(img_url)
+                        gr.Image(value = img)
     ai_response_output.change(get_menu_list, [], menus)
     clear_btn.click(lambda :None, None, audio_input)
     submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")

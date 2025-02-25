@@ -120,3 +120,12 @@ def get_menu_list_closure(g):
         except:
             print("menus not ready")
     return get_menus()
+
+from PIL import Image
+import requests
+from io import BytesIO
+
+def get_image_from_url(img_url):
+    res = requests.get(img_url)
+    img = Image.open(BytesIO(res.content))
+    return img

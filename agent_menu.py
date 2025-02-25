@@ -132,4 +132,4 @@ with gr.Blocks() as demo:
     ai_response_output.change(get_menu_list, [], menus)
     clear_btn.click(lambda :None, None, audio_input)
     submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")
-demo.launch(server_port=4000)
+demo.launch(server_port=8080)

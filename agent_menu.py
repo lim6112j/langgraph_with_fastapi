@@ -119,7 +119,7 @@ with gr.Blocks() as demo:
             @gr.render(inputs=menus)
             def show_images(text: str):
                 if len(text) == 0:
-                    gr.Markdown("no data")
+                    gr.Markdown("")
                 else:
                     json_obj = json.loads(text)
 #                    print(f"gradio read menus: {json_obj[0]}")

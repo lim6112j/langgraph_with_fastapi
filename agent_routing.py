@@ -72,10 +72,12 @@ def stream_graph_updates(message: str, config: Dict):
 
 from transformers import pipeline
 import torch
+device = "cuda:0" if torch.cuda.is_avaliable() else "mps"
+print(f"\ncurrent device is {device}\n")
 pipe = pipeline("automatic-speech-recognition",
                 "openai/whisper-large-v3-turbo",
                 torch_dtype=torch.float16,
-                device="mps")
+                device=device)
 
 # handle audio input, TODO: session or user_id setting
 def run_agent(audio_input, session_id: Union[str, None] = None, thread_id: Union[str, None] = "thread_1"):

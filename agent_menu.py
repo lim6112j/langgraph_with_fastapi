@@ -72,7 +72,7 @@ def stream_graph_updates(message: str, config: Dict):
 
 from transformers import pipeline
 import torch
-device = "cuda:0" if torch.cuda.is_avaliable() else "mps"
+device = "cuda:0" if torch.cuda.is_available() else "mps"
 print(f"\ncurrent device is {device}\n")
 pipe = pipeline("automatic-speech-recognition",
                 "openai/whisper-large-v3-turbo",

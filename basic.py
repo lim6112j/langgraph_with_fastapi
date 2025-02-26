@@ -37,7 +37,7 @@ def get_user_location():
 def human_assistance(query: str) -> str:
     """Request assistance from a human."""
     human_response = interrupt({"query": query})
-
+    print(f"interrupt resumed ============================{human_response['data']}")
     return human_response["data"]
 
 llm = ChatOllama(model="llama3.2")
@@ -68,6 +68,8 @@ graph_builder.add_conditional_edges("chatbot", tools_condition)
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge(START, "chatbot")
 
+memory = MemorySaver()
+graph = graph_builder.compile(checkpointer=memory)
 
 def stream_graph_updates(user_input: str, config: Dict):
     for event in graph.stream(
@@ -87,12 +89,18 @@ def run_agent(user_input: str, chatbot_history, thread_id: Union[str, None]="thr
     except:
         # fallback if input() is not available
         raise
+def expert_talk_closure(talk, gra, conf):
+    g = gra
+    def expert_talk_inner():
+        human_command = g.invoke(Command(resume={"data": talk}), config=conf)
+        return talk
+    print(f"after human_assistance state =>  {g.get_state(conf)}")
+    return expert_talk_inner()
+
 def expert_talk(talk: str):
-    human_command = Command(resume={"data": talk})
-    return talk
+    config = {"configurable": {"thread_id": "thread_1"}}
+    return expert_talk_closure(talk,graph,config)
 with gr.Blocks() as demo:
-    memory = MemorySaver()
-    graph = graph_builder.compile(checkpointer=memory)
 
     chatbot = gr.Chatbot(type="messages")
     msg = gr.Textbox()

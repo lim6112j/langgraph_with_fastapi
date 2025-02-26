@@ -13,6 +13,7 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
     menus: list
     routes: list
+    chart_data: list
 
 @tool
 def get_routes(state: State, start: str, destination: str,  tool_call_id: Annotated[str, InjectedToolCallId]):
@@ -108,7 +109,13 @@ def get_dashboard_info(state: State):
     dict = df.to_json(orient="records")
     return f"{dict}"
 @tool
-def draw_chart(state: State, data: list):
+def get_chart_data(state: State, data: str, tool_call_id: Annotated[str, InjectedToolCallId]):
     """draw chart"""
-    print(f"agent made vehicle data => {data}")
-    return f"{data}"
+    return Command(
+        update={
+            "chart_data": data,
+             "messages": [
+                 ToolMessage(data, tool_call_id=tool_call_id)
+             ],
+        }
+    )

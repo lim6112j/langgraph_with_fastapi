@@ -129,3 +129,15 @@ def get_image_from_url(img_url):
     res = requests.get(img_url)
     img = Image.open(BytesIO(res.content))
     return img
+def get_chart_data_closure(g):
+    graph = g
+    def get_data():
+        config = {"configurable": {"thread_id": "thread_1"}}
+        state = graph.get_state(config)
+        try:
+            data = state.values['chart_data']
+#            print(f"state[menus] : {menus}")
+            return data
+        except:
+            print("state data not ready")
+    return get_data()

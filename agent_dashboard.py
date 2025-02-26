@@ -16,12 +16,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
-from custom_tool.tools import State, get_dashboard_info
+from custom_tool.tools import State, get_dashboard_info, get_chart_data
 from messages.messages import template
 from helper.funcs import get_messages_info, get_messages_dashboard_info
 
 
-tools = [get_dashboard_info]
+tools = [get_dashboard_info, get_chart_data]
 # LLM model : LLAMA, Claude
 from langchain_ollama import ChatOllama
 LLM_MODEL = os.getenv("LLM_MODEL")
@@ -66,6 +66,7 @@ def stream_graph_updates(message: str, config: Dict):
         if "messages" in event:
                 event["messages"][-1].pretty_print()
                 result = event["messages"][-1]
+    print(f"result => {result}")
     return result.content
 
 from transformers import pipeline
@@ -87,10 +88,18 @@ def run_agent(audio_input, session_id: Union[str, None] = None, thread_id: Union
 
 # WEB UI draw
 import gradio as gr
-from helper.gradio_func import filter_map
+from helper.gradio_func import get_chart_data_closure
 import plotly.graph_objects as go
+import sys
+if sys.version_info[0] < 3:
+    from StringIO import StringIO
+else:
+    from io import StringIO
 
-import json
+import pandas as pd
+# state to closure
+def get_data():
+    return get_chart_data_closure(graph)
 
 with gr.Blocks() as demo:
     gr.Markdown("""# Ciel AI Agent for Dashboard Agent with voice""")
@@ -99,6 +108,7 @@ with gr.Blocks() as demo:
             audio_input = gr.Audio(sources=["microphone", "upload"], type="filepath")
             transcript_output = gr.Textbox(label="Transcription")
             ai_response_output = gr.Textbox(label="AI Response")
+#            ai_state_output = gr.Textbox(label="AI State")
             inputs=[audio_input]
             outputs=[
                 transcript_output,
@@ -114,13 +124,19 @@ with gr.Blocks() as demo:
                 if len(text) == 0:
                     gr.Markdown("")
                 else:
-                    json_obj = json.loads(text)
-                    gr.Markdown(text)
+                    CHARTDATA = StringIO(text)
+                    df = pd.read_csv(CHARTDATA, sep=",")
+                    gr.LinePlot(
+                        df,
+                        x='timestamp',
+                        y='speed'
+                    )
 
         # tiColumn="Ciel AI Agent: Transcribe Audio and Get AI Routing"
         # descriColumnon="Ciel the leading MOD, DRT Service Provider."
         # allow_Columngging="never"
 #    ai_response_output.change(get_data_list, [], data)
+    ai_response_output.change(get_data, [], data)
     clear_btn.click(lambda :None, None, audio_input)
     submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")
 demo.launch(server_port=8080)

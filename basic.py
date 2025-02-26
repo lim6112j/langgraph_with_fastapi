@@ -37,11 +37,6 @@ def get_user_location():
 def human_assistance(query: str) -> str:
     """Request assistance from a human."""
     human_response = interrupt({"query": query})
-    human_response = (
-    "We, the experts are here to help! We'd recommend you check out LangGraph to build your agent."
-    " It's much more reliable and extensible than simple autonomous agents."
-)
-
     human_command = Command(resume={"data": human_response})
     return human_response["data"]
 

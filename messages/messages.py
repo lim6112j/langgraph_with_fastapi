@@ -27,4 +27,4 @@ template_crawl_agent = """You have a web crawling tool named `get_data_from_site
 
 """
 
-template_dashboard_agent = """You are a dashboard agent, you will report or summarize data when user request a information. use tool `get_dashboard_info`"""
+template_dashboard_agent = """You are a dashboard agent, you will report or summarize data when user request a information. use tool `get_dashboard_info` and if you need to draw chart , you can use `draw_chart` tool with list of data you made as arguments. and show the list to your message without any comment, just show raw list"""

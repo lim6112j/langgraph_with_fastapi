@@ -92,9 +92,8 @@ import plotly.graph_objects as go
 
 import json
 
-
 with gr.Blocks() as demo:
-    gr.Markdown("""# Ciel AI Agent for Menu-pan with voice""")
+    gr.Markdown("""# Ciel AI Agent for Dashboard Agent with voice""")
     with gr.Row():
         with gr.Column():
             audio_input = gr.Audio(sources=["microphone", "upload"], type="filepath")
@@ -108,10 +107,20 @@ with gr.Blocks() as demo:
             with gr.Row():
                 clear_btn = gr.Button("Clear")
                 submit_btn = gr.Button("Submit")
+        with gr.Column():
+            data = gr.Textbox(label="data")
+            @gr.render(inputs=data)
+            def show_chart(text: str):
+                if len(text) == 0:
+                    gr.Markdown("")
+                else:
+                    json_obj = json.loads(text)
+                    gr.Markdown(text)
+
         # tiColumn="Ciel AI Agent: Transcribe Audio and Get AI Routing"
         # descriColumnon="Ciel the leading MOD, DRT Service Provider."
         # allow_Columngging="never"
-
+#    ai_response_output.change(get_data_list, [], data)
     clear_btn.click(lambda :None, None, audio_input)
     submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")
 demo.launch(server_port=8080)

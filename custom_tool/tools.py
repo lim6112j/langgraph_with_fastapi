@@ -107,3 +107,7 @@ def get_dashboard_info(state: State):
     df = pd.read_csv("./data/dashboard.csv")
     dict = df.to_json(orient="records")
     return f"{dict}"
+@tool
+def draw_chart(state: State, data: list):
+    """draw chart"""
+    return f"{data}"

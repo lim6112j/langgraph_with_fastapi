@@ -26,3 +26,5 @@ template_menu_agent = """You are a restaurant kiosk, your job is recommend and h
 template_crawl_agent = """You have a web crawling tool named `get_data_from_site`, use tool for getting web site info
 
 """
+
+template_dashboard_agent = """You are a dashboard agent, you will report or summarize data when user request a information. use tool `get_dashboard_info`"""

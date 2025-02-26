@@ -8,18 +8,11 @@ import json
 import pandas as pd
 import os
 import http.client
-df_menus = pd.read_csv("./data/menus.csv")
-df = pd.read_csv("./data/locations.csv")
-names = df["name"].tolist()
-lons = df["longitude"].tolist()
-lats = df["latitude"].tolist()
-loc_dict = {names[i]: (lons[i], lats[i]) for i in range(0, len(names))}
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
     menus: list
     routes: list
-
 
 @tool
 def get_routes(state: State, start: str, destination: str,  tool_call_id: Annotated[str, InjectedToolCallId]):
@@ -30,6 +23,11 @@ def get_routes(state: State, start: str, destination: str,  tool_call_id: Annota
        start (str): start location name
        destination (str): destination location name
     """
+    df = pd.read_csv("./data/locations.csv")
+    names = df["name"].tolist()
+    lons = df["longitude"].tolist()
+    lats = df["latitude"].tolist()
+    loc_dict = {names[i]: (lons[i], lats[i]) for i in range(0, len(names))}
     start_loc = str(loc_dict[start][0]) + ',' + str(loc_dict[start][1])
     destination_loc = str(loc_dict[destination][0]) + ',' + str(loc_dict[destination][1])
     locations = start_loc + ';' + destination_loc
@@ -69,6 +67,7 @@ def get_routes(state: State, start: str, destination: str,  tool_call_id: Annota
 def get_menus(state: State,tool_call_id: Annotated[str, InjectedToolCallId]):
     """getting menus of restaurant
     """
+    df_menus = pd.read_csv("./data/menus.csv")
     dict = df_menus.to_json(orient="records")
     menus = f"{dict}"
     return Command(
@@ -101,3 +100,10 @@ def get_data_from_site(state: State, keyword: str):
         print(ex)
         html_str = "not found"
     return f"{html_str}"
+
+@tool
+def get_dashboard_info(state: State):
+    """get dashboard data"""
+    df = pd.read_csv("./data/dashboard.csv")
+    dict = df.to_json(orient="records")
+    return f"{dict}"

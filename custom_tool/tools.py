@@ -110,4 +110,5 @@ def get_dashboard_info(state: State):
 @tool
 def draw_chart(state: State, data: list):
     """draw chart"""
+    print(f"agent made vehicle data => {data}")
     return f"{data}"

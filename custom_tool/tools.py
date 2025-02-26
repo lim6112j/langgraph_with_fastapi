@@ -119,3 +119,8 @@ def get_chart_data(state: State, data: str, tool_call_id: Annotated[str, Injecte
              ],
         }
     )
+@tool
+def get_postgresql_data(state: State, query: str, tool_call_id: Annotated[str, InjectedToolCallId]):
+    """get postgreql data with given query"""
+    data = "test"
+    return f"{data}"

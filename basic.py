@@ -37,7 +37,7 @@ def get_user_location():
 def human_assistance(query: str) -> str:
     """Request assistance from a human."""
     human_response = interrupt({"query": query})
-    human_command = Command(resume={"data": human_response})
+
     return human_response["data"]
 
 llm = ChatOllama(model="llama3.2")
@@ -68,9 +68,7 @@ graph_builder.add_conditional_edges("chatbot", tools_condition)
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge(START, "chatbot")
 
-memory = MemorySaver()
 
-graph = graph_builder.compile(checkpointer=memory)
 def stream_graph_updates(user_input: str, config: Dict):
     for event in graph.stream(
             {"messages": [{"role": "user", "content": user_input}]},
@@ -89,10 +87,17 @@ def run_agent(user_input: str, chatbot_history, thread_id: Union[str, None]="thr
     except:
         # fallback if input() is not available
         raise
+def expert_talk(talk: str):
+    human_command = Command(resume={"data": talk})
+    return talk
 with gr.Blocks() as demo:
+    memory = MemorySaver()
+    graph = graph_builder.compile(checkpointer=memory)
+
     chatbot = gr.Chatbot(type="messages")
     msg = gr.Textbox()
+    expert = gr.Textbox(label="Expert")
     clear = gr.ClearButton([msg, chatbot])
     msg.submit(run_agent, [msg, chatbot], [msg, chatbot])
-
+    expert.submit(expert_talk, [expert], [msg])
 demo.launch()

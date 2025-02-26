@@ -85,12 +85,19 @@ def get_data_from_site(state: State, keyword: str):
     Args: keyword(str): keyword you will search for
     """
     try:
+        import urllib.parse
+        safe_keyword = urllib.parse.quote(keyword)
+        headers={'user-agent': "Emacs Restclient"}
         conn = http.client.HTTPSConnection("namu.wiki")
-        conn.request("GET", "/w/" + keyword)
+        conn.request("GET", "/Search?q=" + safe_keyword, headers=headers)
         res = conn.getresponse()
-        routes_bytes = res.read()
-        print(f"got data from namuwiki => {routes_bytes}")
+        res_bytes = res.read()
+        html_str = res_bytes.decode('utf8').replace("'", '"')
+        print(f"got data from namuwiki => {html_str}")
         conn.close()
-    except:
-        routes_bytes = "not found"
-    return f"{routes_bytes}"
+    except TypeError as ex:
+        print(type(ex))
+        print(ex.args)
+        print(ex)
+        html_str = "not found"
+    return f"{html_str}"

@@ -21,7 +21,7 @@ from messages.messages import template
 from helper.funcs import get_messages_info, get_messages_crawl_info
 
 
-tools = []
+tools = [get_data_from_site]
 # LLM model : LLAMA, Claude
 from langchain_ollama import ChatOllama
 LLM_MODEL = os.getenv("LLM_MODEL")

@@ -44,3 +44,7 @@ content-type: :jType
 }
 # osrm test
 GET http://:osrm/route/v1/driving/127.027458,37.497467;127.033497,37.485076?steps=true
+
+# namu wiki
+GET https://namu.wiki/Search?q=프로젝트%20헤일메리
+User-Agent: Emacs Restclient

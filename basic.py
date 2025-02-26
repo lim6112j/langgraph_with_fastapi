@@ -1,6 +1,7 @@
 import gradio as gr
 import random
 import time
+from datetime import datetime
 from langchain_ollama import ChatOllama
 from dotenv import load_dotenv
 from typing import Annotated
@@ -20,26 +21,36 @@ class State(TypedDict):
 @tool
 def get_now(format: str = "%Y-%m-%d %H:%M:%S"):
     """
-    Get the current time
+    you can get current time. use this tool when you need to
     """
-    return datetime.now().strftime(format)
+    c_time = datetime.now().strftime(format)
+    return c_time
+@tool
+def human_assistance(query: str) -> str:
+    """Request assistance from a human"""
+    human_response = interrupt({"query": query})
+    return human_response["data"]
 llm = ChatOllama(model="llama3.2")
-tools = []
+tools = [get_now, human_assistance]
 llm_with_tools = llm.bind_tools(tools)
 
 
 def chatbot(state: State):
-    return {"messages": [llm.invoke(state["messages"])]}
+    return {"messages": [llm_with_tools.invoke(state["messages"])]}
 
 
 # The first argument is the unique node name
 # The second argument is the function or object that will be called whenever
 # the node is used.
-graph_builder = StateGraph(State)
+from langgraph.prebuilt import ToolNode, tools_condition
 
+graph_builder = StateGraph(State)
+tool_node = ToolNode(tools=tools)
 graph_builder.add_node("chatbot", chatbot)
+graph_builder.add_node("tools", tool_node)
+graph_builder.add_conditional_edges("chatbot", tools_condition)
+graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge(START, "chatbot")
-graph_builder.add_edge("chatbot", END)
 graph = graph_builder.compile()
 
 def stream_graph_updates(user_input: str):

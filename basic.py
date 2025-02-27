@@ -93,8 +93,8 @@ def expert_talk_closure(talk, gra, conf):
     g = gra
     def expert_talk_inner():
         human_command = g.invoke(Command(resume={"data": talk}), config=conf)
-        return talk
-    print(f"after human_assistance state =>  {g.get_state(conf)}")
+        return [{"role": "user","content": talk}]
+    #print(f"after human_assistance state =>  {g.get_state(conf)}")
     return expert_talk_inner()
 
 def expert_talk(talk: str):
@@ -107,5 +107,5 @@ with gr.Blocks() as demo:
     expert = gr.Textbox(label="Expert")
     clear = gr.ClearButton([msg, chatbot])
     msg.submit(run_agent, [msg, chatbot], [msg, chatbot])
-    expert.submit(expert_talk, [expert], [msg])
+    expert.submit(expert_talk, [expert], [chatbot])
 demo.launch()

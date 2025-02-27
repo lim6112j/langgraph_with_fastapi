@@ -93,7 +93,15 @@ def expert_talk_closure(talk, gra, conf):
     g = gra
     def expert_talk_inner():
         human_command = g.invoke(Command(resume={"data": talk}), config=conf)
-        return [{"role": "user","content": talk}]
+        for event in g.stream(
+                {"messages": [{"role": "user", "content": talk}]},
+                conf,
+                stream_mode="values"
+        ):
+            if "messages" in event:
+                event["messages"][-1].pretty_print()
+                result = event["messages"][-1]
+        return [{"role": "user","content": result.content}]
     #print(f"after human_assistance state =>  {g.get_state(conf)}")
     return expert_talk_inner()
 

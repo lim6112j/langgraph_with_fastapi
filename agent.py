@@ -1,3 +1,13 @@
+from langchain_core.messages import ToolMessage
+from langchain_anthropic import ChatAnthropic
+import pandas as pd
+from dotenv import load_dotenv
+from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_community.tools.tavily_search import TavilySearchResults
+from langgraph.types import Command, interrupt
+from langchain_core.tools import InjectedToolCallId, tool
 from typing import Annotated, Union, Dict
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
@@ -7,12 +17,11 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
     name: str
     birthday: str
-from langchain_core.messages import ToolMessage
-from langchain_core.tools import InjectedToolCallId, tool
-from langgraph.types import Command, interrupt
+
 
 def human_assistance(
-        name: str, birthday: str, tool_call_id: Annotated[str, InjectedToolCallId]
+        name: str, birthday: str,
+        tool_call_id: Annotated[str, InjectedToolCallId]
 ) -> str:
     """Request assistance from a human"""
     human_response = interrupt(
@@ -32,7 +41,8 @@ def human_assistance(
         verified_name = human_response.get("name", name)
         verified_birthday = human_response.get("birthday", birthday)
         response = f"Made a correction: {human_response}"
-    # This time we explicitly update the state with a ToolMessage inside the tool
+    # This time we explicitly update the state
+    # with a ToolMessage inside the tool
     state_update = {
         "name": verified_name,
         "birthday": verified_birthday,
@@ -41,25 +51,22 @@ def human_assistance(
     # We return a Command object in the tool to update our state.
     return Command(update=state_update)
 
-from langchain_anthropic import ChatAnthropic
-from langchain_community.tools.tavily_search import TavilySearchResults
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import StateGraph, START, END
-from langgraph.prebuilt import ToolNode, tools_condition
-from dotenv import load_dotenv
+
 load_dotenv()
-import pandas as pd
 
 df = pd.read_csv("./data/locations.csv")
 names = df["name"].tolist()
 lons = df["longitude"].tolist()
 lats = df["latitude"].tolist()
 loc_dict = {names[i]: (lons[i], lats[i]) for i in range(0, len(names))}
+
+
 @tool
 def get_routes(start: str, destination: str) -> str:
     """ Get route information from start to destination."""
     start_loc = str(loc_dict[start][0]) + ',' + str(loc_dict[start][1])
-    destination_loc = str(loc_dict[destination][0]) + ',' + str(loc_dict[destination][1])
+    destination_loc = str(loc_dict[destination][0]) + \
+        ',' + str(loc_dict[destination][1])
     locations = start_loc + ';' + destination_loc
     print(locations)
     import os
@@ -74,18 +81,23 @@ def get_routes(start: str, destination: str) -> str:
     print(f"osrm response routes data {routes}")
     if not routes:
         return "No routes found."
-    # response = "\n".join([f"{route['id']}: {route['title']}" for route in routes])
+    # response = "\n".join([f"{route['id']}: {route['title']}"
+    # for route in routes])
     return f"Available routes:\n{routes}"
+
+
 tool = TavilySearchResults(max_results=2)
-#tools = [tool, human_assistance]
+# tools = [tool, human_assistance]
 tools = [get_routes]
 llm = ChatAnthropic(model="claude-3-5-sonnet-20240620")
 llm_with_tools = llm.bind_tools(tools)
+
 
 def chatbot(state: State):
     message = llm_with_tools.invoke(state["messages"])
     assert len(message.tool_calls) <= 1
     return {"messages": [message]}
+
 
 graph_builder = StateGraph(State)
 graph_builder.add_node("chatbot", chatbot)
@@ -102,6 +114,8 @@ graph_builder.add_edge(START, "chatbot")
 
 memory = MemorySaver()
 graph = graph_builder.compile(checkpointer=memory)
+
+
 def stream_graph_updates(message: str, config: Dict):
     result: str
     for event in graph.stream(
@@ -110,11 +124,13 @@ def stream_graph_updates(message: str, config: Dict):
             stream_mode="values",
     ):
         if "messages" in event:
-                event["messages"][-1].pretty_print()
-                result = event["messages"][-1]
+            event["messages"][-1].pretty_print()
+            result = event["messages"][-1]
     return result.content
 
-def run_agent(message: str, session_id: Union[str, None] = None, thread_id: Union[str, None] = "thread_1"):
+
+def run_agent(message: str, session_id: Union[str, None] = None,
+              thread_id: Union[str, None] = "thread_1"):
     config = {"configurable": {"thread_id": thread_id}}
 
     return stream_graph_updates(message, config)

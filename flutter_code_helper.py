@@ -2,21 +2,39 @@ import os
 import shutil
 import re
 import subprocess
+import logging
 import gradio as gr
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
 from langgraph.graph import StateGraph, END
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 import getpass
 import json
 import yaml
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('flutter_code_helper.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 # OpenAI API 키 설정
 if not os.getenv("OPENAI_API_KEY"):
-    os.environ["OPENAI_API_KEY"] = getpass.getpass("Enter Api key for OPENAI")
+    try:
+        os.environ["OPENAI_API_KEY"] = getpass.getpass("Enter Api key for OPENAI")
+        logger.info("OpenAI API key successfully set")
+    except Exception as e:
+        logger.error(f"Failed to set OpenAI API key: {e}")
+        raise
 
 # LLM 초기화
 llm = ChatOpenAI(model="gpt-4", temperature=0.2, max_tokens=4096)
@@ -81,9 +99,23 @@ class GraphState(Dict[str, Any]):
 # pubspec.yaml에 의존성 추가 함수
 
 
-def add_dependency_to_pubspec(pubspec_path: str, dependency: str, version: str) -> None:
-    """pubspec.yaml의 dependencies 섹션에 의존성을 추가"""
+def add_dependency_to_pubspec(pubspec_path: str, dependency: str, version: str) -> bool:
+    """
+    Add dependency to pubspec.yaml with enhanced error handling and logging
+    
+    Args:
+        pubspec_path (str): Path to pubspec.yaml
+        dependency (str): Name of the dependency
+        version (str): Version of the dependency
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
     try:
+        if not os.path.exists(pubspec_path):
+            logger.error(f"Pubspec file not found: {pubspec_path}")
+            return False
+
         with open(pubspec_path, "r") as f:
             pubspec = yaml.safe_load(f) or {}
 
@@ -92,8 +124,18 @@ def add_dependency_to_pubspec(pubspec_path: str, dependency: str, version: str) 
 
         with open(pubspec_path, "w") as f:
             yaml.dump(pubspec, f, default_flow_style=False, allow_unicode=True)
+        
+        logger.info(f"Added dependency {dependency}@{version} to pubspec.yaml")
+        return True
+    except (IOError, PermissionError) as e:
+        logger.error(f"File access error in pubspec: {e}")
+        return False
+    except yaml.YAMLError as e:
+        logger.error(f"YAML parsing error: {e}")
+        return False
     except Exception as e:
-        raise Exception(f"Failed to update pubspec.yaml: {e}")
+        logger.error(f"Unexpected error updating pubspec.yaml: {e}")
+        return False
 
 # LangGraph 노드 정의
 
@@ -118,25 +160,73 @@ def chatbot_node(state: GraphState) -> GraphState:
 
 
 def create_project_node(state: GraphState) -> GraphState:
-    """Flutter 프로젝트 생성 노드"""
+    """
+    Flutter 프로젝트 생성 노드 with enhanced error handling and validation
+    
+    Args:
+        state (GraphState): Current workflow state
+    
+    Returns:
+        GraphState: Updated state with project creation results
+    """
     try:
-        directory = os.path.abspath(state["directory"])
+        # Validate input directory
+        directory = os.path.abspath(state.get("directory", ""))
+        if not directory or not os.access(directory, os.W_OK):
+            logger.error(f"Invalid or non-writable directory: {directory}")
+            state["status"] = "Invalid project directory"
+            return state
+
         project_dir = os.path.join(directory, "my_flutter_app")
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        
+        # Safely create directory
+        try:
+            os.makedirs(directory, exist_ok=True)
+        except PermissionError:
+            logger.error(f"Permission denied creating directory: {directory}")
+            state["status"] = "Permission denied"
+            return state
 
-        if os.path.exists(project_dir):
-            shutil.rmtree(project_dir)
-
+        # Check Flutter CLI
         if not shutil.which("flutter"):
-            raise Exception("Flutter CLI가 설치되어 있지 않습니다.")
+            logger.error("Flutter CLI not installed")
+            state["status"] = "Flutter CLI not found"
+            return state
 
-        os.system(f"flutter create --quiet {project_dir}")
+        # Remove existing project if it exists
+        if os.path.exists(project_dir):
+            try:
+                shutil.rmtree(project_dir)
+            except PermissionError:
+                logger.error(f"Cannot remove existing project: {project_dir}")
+                state["status"] = "Cannot remove existing project"
+                return state
 
+        # Create Flutter project with error handling
+        create_result = subprocess.run(
+            ["flutter", "create", "--quiet", project_dir], 
+            capture_output=True, 
+            text=True
+        )
+        if create_result.returncode != 0:
+            logger.error(f"Flutter project creation failed: {create_result.stderr}")
+            state["status"] = f"Project creation error: {create_result.stderr}"
+            return state
+
+        # Add dependencies
         pubspec_path = os.path.join(project_dir, "pubspec.yaml")
-        add_dependency_to_pubspec(pubspec_path, "flutter_bloc", "^8.1.3")
+        if not add_dependency_to_pubspec(pubspec_path, "flutter_bloc", "^8.1.3"):
+            logger.warning("Could not add flutter_bloc dependency")
 
-        os.system(f"cd {project_dir} && flutter pub get")
+        # Pub get with error handling
+        pub_result = subprocess.run(
+            ["flutter", "pub", "get"], 
+            cwd=project_dir,
+            capture_output=True, 
+            text=True
+        )
+        if pub_result.returncode != 0:
+            logger.error(f"Pub get failed: {pub_result.stderr}")
 
         # 요청된 파일 생성
         response = flutter_chain.invoke({
@@ -149,16 +239,22 @@ def create_project_node(state: GraphState) -> GraphState:
 
         # 파일 경로 설정
         file_path = os.path.join(project_dir, state["filename"])
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, "w") as f:
-            f.write(dart_code.strip())
+        try:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "w") as f:
+                f.write(dart_code.strip())
+        except (IOError, PermissionError) as e:
+            logger.error(f"Failed to write file {file_path}: {e}")
+            state["status"] = f"File write error: {e}"
+            return state
 
         # main.dart 기본 코드 생성 (필요 시)
         main_dart_path = os.path.join(project_dir, "lib", "main.dart")
         if state["filename"] != "lib/main.dart":
-            class_name = ''.join(word.capitalize() for word in os.path.basename(
-                state["filename"]).replace(".dart", "").split('_'))
-            main_code = f"""import 'package:flutter/material.dart';
+            try:
+                class_name = ''.join(word.capitalize() for word in os.path.basename(
+                    state["filename"]).replace(".dart", "").split('_'))
+                main_code = f"""import 'package:flutter/material.dart';
 import '{state["filename"].replace("lib/", "./")}';
 
 void main() {{
@@ -174,15 +270,20 @@ class MyApp extends StatelessWidget {{
   }}
 }}
 """
-            with open(main_dart_path, "w") as f:
-                f.write(main_code.strip())
+                with open(main_dart_path, "w") as f:
+                    f.write(main_code.strip())
+            except (IOError, PermissionError) as e:
+                logger.warning(f"Failed to create main.dart: {e}")
 
+        logger.info(f"Flutter project created successfully at {project_dir}")
         state["status"] = f"Flutter 프로젝트가 {project_dir}에 생성되었습니다. 파일: {state['filename']}"
         state["code"] = dart_code.strip()
         state["project_dir"] = project_dir
         return state
+
     except Exception as e:
-        state["status"] = f"Error: {e}"
+        logger.exception("Unexpected error in project creation")
+        state["status"] = f"Unexpected error: {str(e)}"
         state["code"] = None
         return state
 

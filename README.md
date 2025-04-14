@@ -374,3 +374,8 @@ in previous gradio app, make chatbot node and combine tools with the chatbot nod
 Error: One input key expected got ['filename', 'request']
 
 사용자가 "이메일, 패스워드를 필드로 하는 로그인 화면이 포함된 Flutter 앱을 만들라고 지시했는데 에러가 발생했다"고 하셨으며, 구체적으로 Error: One input key expected got ['filename', 'request']라는 에러를 언급하셨습니다. 이 에러는 LangChain의 LLMChain이 단일 입력 키를 기대하는데, flutter_chain 호출 시 filename과 request 두 개의 입력을 전달하면서 발생한 것으로 보입니다. 이는 flutter_prompt 템플릿이 filename, request, history를 모두 처리하도록 설계되었음에도, LLMChain 실행 시 입력 처리 로직이 잘못된 경우 발생할 수 있습니다.
+
+
+Error: '\n  runApp(MyApp());\n'
+
+사용자가 Flutter 앱 생성 요청("이메일, 패스워드를 필드로 하는 로그인 화면")을 처리하는 과정에서 Error: '\n  runApp(MyApp());\n'라는 에러가 발생했다고 언급하셨습니다. 이 에러는 main.dart 파일의 코드가 잘못된 형식으로 생성되었거나, runApp(MyApp()); 호출 주변에 예상치 못한 공백이나 들여쓰기 문제로 인해 발생한 것으로 보입니다. 특히, 이전 코드에서 main.dart를 생성할 때 문자열 포맷팅(.format())이 올바르게 처리되지 않았거나, 파일 내용이 잘못된 구조로 저장되었을 가능성이 있습니다.

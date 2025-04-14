@@ -12,6 +12,7 @@ from typing import Dict, Any
 from dotenv import load_dotenv
 import getpass
 import json
+import yaml
 load_dotenv()
 # OpenAI API 키 설정
 if not os.getenv("OPENAI_API_KEY"):
@@ -27,7 +28,7 @@ memory = ConversationBufferMemory()
 flutter_prompt = PromptTemplate(
     input_variables=["request", "history", "filename"],
     template="""
-    You are an expert Flutter developer familiar with the BLoC pattern. Based on the user's request, conversation history, and the specified filename, perform the requested task. Use the `flutter_bloc` package for state management when generating code. Include necessary imports, widgets, BLoC setup (Bloc, Event, State), and basic styling. Assume the `flutter_bloc` package is already added to `pubspec.yaml`. If generating code, provide it in a markdown code block (```dart) for the file named '{filename}'. If analyzing or modifying code, reference the previously generated code from the history. Ensure the code is a complete, self-contained widget or class suitable for a separate file, not embedded in `main.dart`.
+    You are an expert Flutter developer familiar with the BLoC pattern. Based on the user's request, conversation history, and the specified filename, perform the requested task. Use the `flutter_bloc` package for state management when generating code. Include necessary imports, widgets, BLoC setup (Bloc, Event, State), and basic styling. Assume the `flutter_bloc` package is already added to `pubspec.yaml`. If generating code, provide it in a markdown code block (```dart) for the file named '{filename}'. The code must be a complete, self-contained widget or class suitable for a separate file, not embedded in `main.dart`. Ensure proper Dart syntax and avoid including `main()` or `runApp` unless the filename is `main.dart`.
 
     Conversation history: {history}
 
@@ -47,7 +48,7 @@ chatbot_prompt = PromptTemplate(
     - "run_app": Run the existing Flutter app.
     - "other": Provide general information or clarification.
 
-    If the request implies creating or modifying a specific screen (e.g., "login screen"), suggest a filename like `lib/screens/<screen_name>.dart`. If no specific file is implied, use `lib/main.dart`.
+    If the request implies creating or modifying a specific screen (e.g., "login screen"), suggest a filename like `lib/screens/<screen_name>.dart` (e.g., `lib/screens/login_screen.dart` for "login screen"). If no specific file is implied or the request is ambiguous, default to `lib/main.dart`.
 
     Conversation history: {history}
 
@@ -77,15 +78,34 @@ class GraphState(Dict[str, Any]):
     status: str
     code: str
 
+# pubspec.yaml에 의존성 추가 함수
+
+
+def add_dependency_to_pubspec(pubspec_path: str, dependency: str, version: str) -> None:
+    """pubspec.yaml의 dependencies 섹션에 의존성을 추가"""
+    try:
+        with open(pubspec_path, "r") as f:
+            pubspec = yaml.safe_load(f) or {}
+
+        pubspec.setdefault("dependencies", {})
+        pubspec["dependencies"][dependency] = version
+
+        with open(pubspec_path, "w") as f:
+            yaml.dump(pubspec, f, default_flow_style=False, allow_unicode=True)
+    except Exception as e:
+        raise Exception(f"Failed to update pubspec.yaml: {e}")
+
 # LangGraph 노드 정의
 
 
 def chatbot_node(state: GraphState) -> GraphState:
     """사용자 요청을 분석하는 챗봇 노드"""
     try:
-        response = chatbot_chain.run(
-            request=state["request"], history=memory.buffer)
-        response_json = json.loads(response)  # 안전한 JSON 파싱
+        response = chatbot_chain.invoke({
+            "request": state["request"],
+            "history": memory.buffer
+        })["text"]
+        response_json = json.loads(response)
         state["action"] = response_json["action"]
         state["processed_request"] = response_json["processed_request"]
         state["filename"] = response_json["filename"]
@@ -114,12 +134,7 @@ def create_project_node(state: GraphState) -> GraphState:
         os.system(f"flutter create --quiet {project_dir}")
 
         pubspec_path = os.path.join(project_dir, "pubspec.yaml")
-        with open(pubspec_path, "r") as f:
-            pubspec_content = f.read()
-
-        if "flutter_bloc" not in pubspec_content:
-            with open(pubspec_path, "a") as f:
-                f.write("\n  flutter_bloc: ^8.1.3\n")
+        add_dependency_to_pubspec(pubspec_path, "flutter_bloc", "^8.1.3")
 
         os.system(f"cd {project_dir} && flutter pub get")
 
@@ -136,39 +151,34 @@ def create_project_node(state: GraphState) -> GraphState:
         file_path = os.path.join(project_dir, state["filename"])
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, "w") as f:
-            f.write(dart_code)
+            f.write(dart_code.strip())
 
         # main.dart 기본 코드 생성 (필요 시)
         main_dart_path = os.path.join(project_dir, "lib", "main.dart")
         if state["filename"] != "lib/main.dart":
-            class_name = os.path.basename(
-                state["filename"]).replace(".dart", "").capitalize()
-            main_code = """
-import 'package:flutter/material.dart';
-import '{relative_import}';
+            class_name = ''.join(word.capitalize() for word in os.path.basename(
+                state["filename"]).replace(".dart", "").split('_'))
+            main_code = f"""import 'package:flutter/material.dart';
+import '{state["filename"].replace("lib/", "./")}';
 
-void main() {
+void main() {{
   runApp(MyApp());
-}
+}}
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatelessWidget {{
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {{
     return MaterialApp(
       home: {class_name}(),
     );
-  }
-}
-""".format(
-                relative_import=state["filename"].replace(
-                    "lib/", "").replace(".dart", ""),
-                class_name=class_name
-            )
+  }}
+}}
+"""
             with open(main_dart_path, "w") as f:
-                f.write(main_code)
+                f.write(main_code.strip())
 
         state["status"] = f"Flutter 프로젝트가 {project_dir}에 생성되었습니다. 파일: {state['filename']}"
-        state["code"] = dart_code
+        state["code"] = dart_code.strip()
         state["project_dir"] = project_dir
         return state
     except Exception as e:
@@ -202,9 +212,9 @@ def process_existing_project_node(state: GraphState) -> GraphState:
             dart_code = code_match.group(1)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, "w") as f:
-                f.write(dart_code)
+                f.write(dart_code.strip())
             state["status"] = f"{state['filename']}가 업데이트되었습니다: {file_path}"
-            state["code"] = dart_code
+            state["code"] = dart_code.strip()
         else:
             state["status"] = response
             state["code"] = None
@@ -229,7 +239,7 @@ def run_app_node(state: GraphState) -> GraphState:
             stderr=subprocess.PIPE,
             text=True
         )
-        stdout, stderr = process.communicate(timeout=30)
+        stdout, stderr = process.communicate(timeout=120)
         if process.returncode == 0:
             state["status"] = f"앱이 성공적으로 실행되었습니다.\nOutput:\n{stdout}"
         else:
@@ -239,7 +249,7 @@ def run_app_node(state: GraphState) -> GraphState:
             project_dir, state.get("filename", "lib/main.dart"))
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
-                state["code"] = f.read()
+                state["code"] = f.read().strip()
         return state
     except subprocess.TimeoutExpired:
         process.kill()

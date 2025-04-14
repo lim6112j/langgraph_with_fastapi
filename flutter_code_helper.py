@@ -60,6 +60,8 @@ flutter_chain = LLMChain(llm=llm, prompt=flutter_prompt, memory=memory)
 chatbot_chain = LLMChain(llm=llm, prompt=chatbot_prompt, memory=memory)
 
 # LangGraph 상태 정의
+
+
 class GraphState(Dict[str, Any]):
     directory: str
     request: str
@@ -70,11 +72,15 @@ class GraphState(Dict[str, Any]):
     code: str
 
 # LangGraph 노드 정의
+
+
 def chatbot_node(state: GraphState) -> GraphState:
     """사용자 요청을 분석하는 챗봇 노드"""
     try:
-        response = chatbot_chain.run(request=state["request"], history=memory.buffer)
-        response_json = eval(response)  # JSON 문자열을 파싱 (안전한 파싱 필요 시 json.loads 사용)
+        response = chatbot_chain.run(
+            request=state["request"], history=memory.buffer)
+        # JSON 문자열을 파싱 (안전한 파싱 필요 시 json.loads 사용)
+        response_json = eval(response)
         state["action"] = response_json["action"]
         state["processed_request"] = response_json["processed_request"]
         return state
@@ -82,6 +88,7 @@ def chatbot_node(state: GraphState) -> GraphState:
         state["status"] = f"Error in chatbot: {e}"
         state["action"] = "other"
         return state
+
 
 def create_project_node(state: GraphState) -> GraphState:
     """Flutter 프로젝트 생성 노드"""
@@ -109,7 +116,8 @@ def create_project_node(state: GraphState) -> GraphState:
 
         os.system(f"cd {project_dir} && flutter pub get")
 
-        response = flutter_chain.run(request=state["processed_request"], history=memory.buffer)
+        response = flutter_chain.run(
+            request=state["processed_request"], history=memory.buffer)
         code_match = re.search(r"```dart\n([\s\S]*?)\n```", response)
         dart_code = code_match.group(1) if code_match else response
 
@@ -126,6 +134,7 @@ def create_project_node(state: GraphState) -> GraphState:
         state["code"] = None
         return state
 
+
 def process_existing_project_node(state: GraphState) -> GraphState:
     """기존 프로젝트 작업 노드"""
     try:
@@ -137,9 +146,11 @@ def process_existing_project_node(state: GraphState) -> GraphState:
         with open(main_dart_path, "r") as f:
             existing_code = f.read()
 
-        memory.chat_memory.add_user_message(f"Previous main.dart code:\n```dart\n{existing_code}\n```")
+        memory.chat_memory.add_user_message(
+            f"Previous main.dart code:\n```dart\n{existing_code}\n```")
 
-        response = flutter_chain.run(request=state["processed_request"], history=memory.buffer)
+        response = flutter_chain.run(
+            request=state["processed_request"], history=memory.buffer)
         code_match = re.search(r"```dart\n([\s\S]*?)\n```", response)
         if code_match:
             dart_code = code_match.group(1)
@@ -155,6 +166,7 @@ def process_existing_project_node(state: GraphState) -> GraphState:
         state["status"] = f"Error: {e}"
         state["code"] = None
         return state
+
 
 def run_app_node(state: GraphState) -> GraphState:
     """Flutter 앱 실행 노드"""
@@ -188,12 +200,15 @@ def run_app_node(state: GraphState) -> GraphState:
         state["status"] = f"Error: {e}"
         return state
 
+
 def other_action_node(state: GraphState) -> GraphState:
     """기타 요청 처리 노드"""
-    response = flutter_chain.run(request=state["processed_request"], history=memory.buffer)
+    response = flutter_chain.run(
+        request=state["processed_request"], history=memory.buffer)
     state["status"] = response
     state["code"] = None
     return state
+
 
 # LangGraph 워크플로우 정의
 workflow = StateGraph(GraphState)
@@ -223,6 +238,8 @@ workflow.add_edge("other", END)
 app_graph = workflow.compile()
 
 # Gradio 인터페이스 처리 함수
+
+
 def gradio_interface(directory, request, project_dir_state):
     initial_state = GraphState(
         directory=directory,
@@ -236,13 +253,16 @@ def gradio_interface(directory, request, project_dir_state):
     result = app_graph.invoke(initial_state)
     return result["status"], result["code"], result["project_dir"]
 
+
 # Gradio 앱 실행
 with gr.Blocks(title="Flutter Project Manager with Chatbot") as app:
     gr.Markdown("# Flutter 프로젝트 관리기 (BLoC 기반)")
     gr.Markdown("챗봇이 요청을 분석하여 프로젝트 생성, 코드 분석, 수정, 실행 등을 처리합니다.")
 
-    directory_input = gr.Textbox(label="디렉토리 경로", placeholder="/home/user/projects")
-    request_input = gr.Textbox(label="요청", placeholder="Create a Flutter login screen 또는 Run the app")
+    directory_input = gr.Textbox(
+        label="디렉토리 경로", placeholder="/home/user/projects")
+    request_input = gr.Textbox(
+        label="요청", placeholder="Create a Flutter login screen 또는 Run the app")
     project_dir_state = gr.State(value=None)
 
     submit_button = gr.Button("요청 처리")

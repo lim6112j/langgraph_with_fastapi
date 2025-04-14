@@ -4,3 +4,4 @@ __pycache__/
 prompt.wav
 *.txt
 .DS_Store
+.aider*

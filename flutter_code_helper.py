@@ -102,12 +102,12 @@ class GraphState(Dict[str, Any]):
 def add_dependency_to_pubspec(pubspec_path: str, dependency: str, version: str) -> bool:
     """
     Add dependency to pubspec.yaml with enhanced error handling and logging
-    
+
     Args:
         pubspec_path (str): Path to pubspec.yaml
         dependency (str): Name of the dependency
         version (str): Version of the dependency
-    
+
     Returns:
         bool: True if successful, False otherwise
     """
@@ -124,7 +124,7 @@ def add_dependency_to_pubspec(pubspec_path: str, dependency: str, version: str) 
 
         with open(pubspec_path, "w") as f:
             yaml.dump(pubspec, f, default_flow_style=False, allow_unicode=True)
-        
+
         logger.info(f"Added dependency {dependency}@{version} to pubspec.yaml")
         return True
     except (IOError, PermissionError) as e:
@@ -162,10 +162,10 @@ def chatbot_node(state: GraphState) -> GraphState:
 def create_project_node(state: GraphState) -> GraphState:
     """
     Flutter 프로젝트 생성 노드 with enhanced error handling and validation
-    
+
     Args:
         state (GraphState): Current workflow state
-    
+
     Returns:
         GraphState: Updated state with project creation results
     """
@@ -178,7 +178,7 @@ def create_project_node(state: GraphState) -> GraphState:
             return state
 
         project_dir = os.path.join(directory, "my_flutter_app")
-        
+
         # Safely create directory
         try:
             os.makedirs(directory, exist_ok=True)
@@ -204,8 +204,8 @@ def create_project_node(state: GraphState) -> GraphState:
 
         # Create Flutter project with error handling
         create_result = subprocess.run(
-            ["flutter", "create", "--quiet", project_dir], 
-            capture_output=True, 
+            ["flutter", "create", "--quiet", project_dir],
+            capture_output=True,
             text=True
         )
         if create_result.returncode != 0:
@@ -220,9 +220,9 @@ def create_project_node(state: GraphState) -> GraphState:
 
         # Pub get with error handling
         pub_result = subprocess.run(
-            ["flutter", "pub", "get"], 
+            ["flutter", "pub", "get"],
             cwd=project_dir,
-            capture_output=True, 
+            capture_output=True,
             text=True
         )
         if pub_result.returncode != 0:

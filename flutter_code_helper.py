@@ -324,30 +324,31 @@ def chatbot_node(state: GraphState) -> GraphState:
 def _validate_project_directory(directory: str) -> Optional[str]:
     """
     Validate project directory with detailed checks
-    
+
     Args:
         directory (str): Directory path to validate
-    
+
     Returns:
         Optional[str]: Error message or None if valid
     """
     if not directory:
         return "Directory path is empty"
-    
+
     abs_directory = os.path.abspath(directory)
-    
+
     if not os.path.exists(abs_directory):
         return "Directory does not exist"
-    
+
     if not os.access(abs_directory, os.W_OK):
         return "Directory is not writable"
-    
+
     return None
+
 
 def _check_flutter_cli() -> Optional[str]:
     """
     Check Flutter CLI availability
-    
+
     Returns:
         Optional[str]: Error message or None if Flutter is available
     """
@@ -355,38 +356,40 @@ def _check_flutter_cli() -> Optional[str]:
         return "Flutter CLI not installed"
     return None
 
+
 def _prepare_project_directory(directory: str, project_name: str) -> Optional[str]:
     """
     Prepare project directory, handling existing projects
-    
+
     Args:
         directory (str): Base directory
         project_name (str): Name of the project
-    
+
     Returns:
         Optional[str]: Error message or None if successful
     """
     project_dir = os.path.join(directory, project_name)
-    
+
     try:
         os.makedirs(directory, exist_ok=True)
-        
+
         if os.path.exists(project_dir):
             shutil.rmtree(project_dir)
-        
+
         return None
     except PermissionError:
         return f"Permission denied for directory: {directory}"
     except Exception as e:
         return f"Unexpected error preparing directory: {e}"
 
+
 def _create_flutter_project(project_dir: str) -> Optional[str]:
     """
     Create Flutter project with error handling
-    
+
     Args:
         project_dir (str): Full path to project directory
-    
+
     Returns:
         Optional[str]: Error message or None if successful
     """
@@ -395,11 +398,12 @@ def _create_flutter_project(project_dir: str) -> Optional[str]:
         capture_output=True,
         text=True
     )
-    
+
     if create_result.returncode != 0:
         return f"Project creation failed: {create_result.stderr}"
-    
+
     return None
+
 
 def create_project_node(state: GraphState) -> GraphState:
     """
@@ -413,7 +417,8 @@ def create_project_node(state: GraphState) -> GraphState:
     """
     try:
         # Validate directory
-        directory_error = _validate_project_directory(state.get("directory", ""))
+        directory_error = _validate_project_directory(
+            state.get("directory", ""))
         if directory_error:
             logger.error(directory_error)
             state["status"] = directory_error
@@ -427,11 +432,12 @@ def create_project_node(state: GraphState) -> GraphState:
             return state
 
         project_name = "my_flutter_app"
-        project_dir = os.path.join(os.path.abspath(state.get("directory", "")), project_name)
+        project_dir = os.path.join(os.path.abspath(
+            state.get("directory", "")), project_name)
 
         # Prepare project directory
         dir_prep_error = _prepare_project_directory(
-            os.path.abspath(state.get("directory", "")), 
+            os.path.abspath(state.get("directory", "")),
             project_name
         )
         if dir_prep_error:
@@ -448,7 +454,7 @@ def create_project_node(state: GraphState) -> GraphState:
 
         # Rest of the existing implementation remains the same...
         # (Add the remaining code from the original function)
-        
+
         return state
 
     except Exception as e:

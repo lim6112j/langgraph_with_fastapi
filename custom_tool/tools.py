@@ -8,6 +8,8 @@ import json
 import pandas as pd
 import os
 import http.client
+import shutil
+import glob
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
@@ -124,3 +126,58 @@ def get_postgresql_data(state: State, query: str, tool_call_id: Annotated[str, I
     """get postgreql data with given query"""
     data = "test"
     return f"{data}"
+
+@tool
+def file_system_create_file(state: State, filename: str, content: str, mode: str = 'text'):
+    """Create a file with given content"""
+    try:
+        with open(filename, 'wb' if mode == 'binary' else 'w') as file:
+            file.write(content.encode() if mode == 'binary' else content)
+        return f"File '{filename}' created successfully"
+    except Exception as e:
+        return f"Error creating file: {e}"
+
+@tool
+def file_system_read_file(state: State, filename: str, mode: str = 'text'):
+    """Read file content"""
+    try:
+        with open(filename, 'rb' if mode == 'binary' else 'r') as file:
+            content = file.read()
+        return content.decode() if mode == 'binary' else content
+    except FileNotFoundError:
+        return f"File '{filename}' not found"
+    except Exception as e:
+        return f"Error reading file: {e}"
+
+@tool
+def file_system_delete_file(state: State, path: str, recursive: bool = False):
+    """Delete a file or directory"""
+    try:
+        if os.path.isdir(path):
+            if recursive:
+                shutil.rmtree(path)
+            else:
+                os.rmdir(path)
+        else:
+            os.remove(path)
+        return f"Successfully deleted {path}"
+    except FileNotFoundError:
+        return f"Path '{path}' not found"
+    except Exception as e:
+        return f"Error deleting {path}: {e}"
+
+@tool
+def file_system_list_files(state: State, path: str = '.', recursive: bool = False, pattern: str = None):
+    """List files in a directory"""
+    try:
+        if recursive:
+            files = glob.glob(os.path.join(path, '**'), recursive=True)
+        else:
+            files = glob.glob(os.path.join(path, '*'))
+        
+        if pattern:
+            files = [f for f in files if glob.fnmatch.fnmatch(os.path.basename(f), pattern)]
+        
+        return json.dumps(files)
+    except Exception as e:
+        return f"Error listing files: {e}"

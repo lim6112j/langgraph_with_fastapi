@@ -8,12 +8,18 @@ tool_create_file = {
             'properties': {
                 'filename': {
                     'type': 'string',
-                    'description': 'The name of the file to create',
+                    'description': 'The name of the file to create (can include path)',
                 },
                 'content': {
                     'type': 'string',
-                    'description': 'The content to write the file',
+                    'description': 'The content to write to the file',
                 },
+                'mode': {
+                    'type': 'string',
+                    'description': 'File creation mode (text/binary)',
+                    'enum': ['text', 'binary'],
+                    'default': 'text'
+                }
             },
             'required': ['filename', 'content']
         },
@@ -30,9 +36,15 @@ tool_read_file = {
             'properties': {
                 'filename': {
                     'type': 'string',
-                    'description': 'The name of the file to read',
-                    },
+                    'description': 'The name of the file to read (can include path)',
                 },
+                'mode': {
+                    'type': 'string',
+                    'description': 'File reading mode (text/binary)',
+                    'enum': ['text', 'binary'],
+                    'default': 'text'
+                }
+            },
             'required': ['filename'],
         },
     },
@@ -42,16 +54,21 @@ tool_delete_file = {
     'type': 'function',
     'function': {
         'name': 'delete_file',
-        'description': 'Delete a file',
+        'description': 'Delete a file or directory',
         'parameters': {
             'type': 'object',
             'properties': {
-                'filename': {
+                'path': {
                     'type': 'string',
-                    'description': 'The name of the file to delete',
+                    'description': 'The path of the file or directory to delete',
                 },
+                'recursive': {
+                    'type': 'boolean',
+                    'description': 'Recursively delete directory contents',
+                    'default': False
+                }
             },
-            'required': ['filename'],
+            'required': ['path'],
         },
     },
 }
@@ -66,14 +83,71 @@ tool_edit_file = {
             'properties': {
                 'filename': {
                     'type': 'string',
-                    'description': 'The name of the file to edit',
+                    'description': 'The name of the file to edit (can include path)',
                 },
                 'content': {
                     'type': 'string',
                     'description': 'The content to write to the file',
                 },
+                'mode': {
+                    'type': 'string',
+                    'description': 'File editing mode (append/overwrite)',
+                    'enum': ['append', 'overwrite'],
+                    'default': 'overwrite'
+                }
             },
             'required': ['filename', 'content'],
+        },
+    },
+}
+
+tool_list_files = {
+    'type': 'function',
+    'function': {
+        'name': 'list_files',
+        'description': 'List files and directories in a given path',
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'path': {
+                    'type': 'string',
+                    'description': 'The directory path to list files from',
+                    'default': '.'
+                },
+                'recursive': {
+                    'type': 'boolean',
+                    'description': 'List files recursively',
+                    'default': False
+                },
+                'pattern': {
+                    'type': 'string',
+                    'description': 'File name pattern to filter results'
+                }
+            },
+            'required': [],
+        },
+    },
+}
+
+tool_create_directory = {
+    'type': 'function',
+    'function': {
+        'name': 'create_directory',
+        'description': 'Create a new directory',
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'path': {
+                    'type': 'string',
+                    'description': 'The path of the directory to create',
+                },
+                'parents': {
+                    'type': 'boolean',
+                    'description': 'Create parent directories if they do not exist',
+                    'default': False
+                }
+            },
+            'required': ['path'],
         },
     },
 }
@@ -113,4 +187,13 @@ tool_search_google = {
     },
 
 }
-tools = [tool_create_file, tool_read_file, tool_delete_file, tool_add_tasks_to_db, tool_search_google]
+tools = [
+    tool_create_file, 
+    tool_read_file, 
+    tool_delete_file, 
+    tool_edit_file,
+    tool_list_files,
+    tool_create_directory,
+    tool_add_tasks_to_db, 
+    tool_search_google
+]

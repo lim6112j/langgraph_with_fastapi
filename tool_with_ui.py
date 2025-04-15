@@ -6,27 +6,95 @@ import os
 import pandas as pd
 import io
 
-def create_file(filename, content):
-    with open(filename, 'w') as file:
-        file.write(content)
-    print(f"File '{filename}' created with content: {content}")
+import shutil
+import glob
 
-def read_file(filename):
+def create_file(filename, content, mode='text'):
+    """Create a file with given content"""
     try:
-        with open(filename, 'r') as file:
+        with open(filename, 'wb' if mode == 'binary' else 'w') as file:
+            file.write(content.encode() if mode == 'binary' else content)
+        print(f"File '{filename}' created successfully")
+        return f"File '{filename}' created successfully"
+    except Exception as e:
+        print(f"Error creating file: {e}")
+        return f"Error creating file: {e}"
+
+def read_file(filename, mode='text'):
+    """Read file content"""
+    try:
+        with open(filename, 'rb' if mode == 'binary' else 'r') as file:
             content = file.read()
-        print(f"Content of '{filename}': {content}")
-        return content
-    except fileNotFoundError:
-        print(f"File '{filename}' not found.")
-        return None
-
-def delete_file(filename):
-    try:
-        os.remove(filename)
-        print(f"File '{filename}' deleted")
+        print(f"Successfully read file: {filename}")
+        return content.decode() if mode == 'binary' else content
     except FileNotFoundError:
         print(f"File '{filename}' not found")
+        return f"File '{filename}' not found"
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return f"Error reading file: {e}"
+
+def delete_file(path, recursive=False):
+    """Delete a file or directory"""
+    try:
+        if os.path.isdir(path):
+            if recursive:
+                shutil.rmtree(path)
+                print(f"Directory '{path}' and its contents deleted")
+            else:
+                os.rmdir(path)
+                print(f"Directory '{path}' deleted")
+        else:
+            os.remove(path)
+            print(f"File '{path}' deleted")
+        return f"Successfully deleted {path}"
+    except FileNotFoundError:
+        print(f"Path '{path}' not found")
+        return f"Path '{path}' not found"
+    except Exception as e:
+        print(f"Error deleting {path}: {e}")
+        return f"Error deleting {path}: {e}"
+
+def edit_file(filename, content, mode='overwrite'):
+    """Edit file content"""
+    try:
+        with open(filename, 'a' if mode == 'append' else 'w') as file:
+            file.write(content)
+        print(f"File '{filename}' edited successfully")
+        return f"File '{filename}' edited successfully"
+    except Exception as e:
+        print(f"Error editing file: {e}")
+        return f"Error editing file: {e}"
+
+def list_files(path='.', recursive=False, pattern=None):
+    """List files in a directory"""
+    try:
+        if recursive:
+            files = glob.glob(os.path.join(path, '**'), recursive=True)
+        else:
+            files = glob.glob(os.path.join(path, '*'))
+        
+        if pattern:
+            files = [f for f in files if glob.fnmatch.fnmatch(os.path.basename(f), pattern)]
+        
+        print(f"Files found: {files}")
+        return files
+    except Exception as e:
+        print(f"Error listing files: {e}")
+        return f"Error listing files: {e}"
+
+def create_directory(path, parents=False):
+    """Create a new directory"""
+    try:
+        if parents:
+            os.makedirs(path, exist_ok=True)
+        else:
+            os.mkdir(path)
+        print(f"Directory '{path}' created successfully")
+        return f"Directory '{path}' created successfully"
+    except Exception as e:
+        print(f"Error creating directory: {e}")
+        return f"Error creating directory: {e}"
 
 def get_response(prompt):
     tools = [

@@ -44,14 +44,34 @@ memory = ConversationBufferMemory()
 
 # Flutter 작업을 위한 프롬프트 템플릿 (BLoC 기반)
 flutter_prompt = PromptTemplate(
-    input_variables=["request", "history", "filename"],
+    input_variables=["request", "history", "filename", "project_context"],
     template="""
-    You are an expert Flutter developer familiar with the BLoC pattern. Based on the user's request, conversation history, and the specified filename, perform the requested task. Use the `flutter_bloc` package for state management when generating code. Include necessary imports, widgets, BLoC setup (Bloc, Event, State), and basic styling. Assume the `flutter_bloc` package is already added to `pubspec.yaml`. If generating code, provide it in a markdown code block (```dart) for the file named '{filename}'. The code must be a complete, self-contained widget or class suitable for a separate file, not embedded in `main.dart`. Ensure proper Dart syntax and avoid including `main()` or `runApp` unless the filename is `main.dart`.
-
+    You are an expert Flutter developer familiar with the BLoC pattern and clean architecture principles. 
+    
+    Enhanced Flutter Code Generation Context:
+    - Strict adherence to clean architecture principles (presentation, domain, data layers)
+    - Follow latest Flutter best practices (Flutter 3.10+)
+    - Consider performance and scalability in your implementation
+    - Implement robust error handling with try/catch blocks
+    - Use modern Dart language features (null safety, extension methods, etc.)
+    - Ensure code is testable with clear separation of concerns
+    
+    Project Context: {project_context}
     Conversation history: {history}
-
-    User's request: {request}
-
+    Target Filename: {filename}
+    User Request: {request}
+    
+    Generate production-ready code addressing:
+    1. Code quality - Follow consistent naming conventions and formatting
+    2. Performance considerations - Avoid expensive operations in build methods
+    3. Maintainability - Use clear comments and documentation
+    4. Scalability - Design for future feature additions
+    5. Error resilience - Handle edge cases and network failures
+    
+    Use the `flutter_bloc` package for state management. Include necessary imports, widgets, BLoC setup (Bloc, Event, State), and appropriate styling. 
+    
+    If generating code, provide it in a markdown code block (```dart) for the file named '{filename}'. The code must be a complete, self-contained widget or class suitable for a separate file, not embedded in `main.dart`. Ensure proper Dart syntax and avoid including `main()` or `runApp` unless the filename is `main.dart`.
+    
     Output the result (code in ```dart block if applicable, otherwise plain text).
     """
 )
@@ -66,7 +86,20 @@ chatbot_prompt = PromptTemplate(
     - "run_app": Run the existing Flutter app.
     - "other": Provide general information or clarification.
 
-    If the request implies creating or modifying a specific screen (e.g., "login screen"), suggest a filename like `lib/screens/<screen_name>.dart` (e.g., `lib/screens/login_screen.dart` for "login screen"). If no specific file is implied or the request is ambiguous, default to `lib/main.dart`.
+    If the request implies creating or modifying a specific screen (e.g., "login screen"), suggest a filename following clean architecture principles:
+    - UI/Screens: `lib/presentation/screens/<screen_name>_screen.dart`
+    - Widgets: `lib/presentation/widgets/<widget_name>.dart`
+    - BLoC: `lib/presentation/bloc/<feature>/<feature>_bloc.dart`
+    - Models: `lib/domain/models/<model_name>.dart`
+    - Repositories: `lib/domain/repositories/<repository_name>.dart`
+    - Data sources: `lib/data/datasources/<source_name>.dart`
+
+    For example, a login screen request should create:
+    - `lib/presentation/screens/login_screen.dart` for the UI
+    - `lib/presentation/bloc/auth/auth_bloc.dart` for the BLoC
+    - `lib/domain/repositories/auth_repository.dart` for the repository
+
+    If no specific file is implied or the request is ambiguous, default to `lib/main.dart`.
 
     Conversation history: {history}
 
@@ -75,13 +108,121 @@ chatbot_prompt = PromptTemplate(
     Output a JSON object with:
     - "action": One of ["create_project", "process_existing", "run_app", "other"]
     - "processed_request": The request to pass to the selected action
-    - "filename": The target filename (e.g., "lib/screens/login_screen.dart" or "lib/main.dart")
+    - "filename": The target filename (e.g., "lib/presentation/screens/login_screen.dart" or "lib/main.dart")
+    - "feature_type": The type of feature being requested (e.g., "login", "dashboard", "settings", etc.)
     """
 )
 
 # LangChain 체인 생성
 flutter_chain = LLMChain(llm=llm, prompt=flutter_prompt)
 chatbot_chain = LLMChain(llm=llm, prompt=chatbot_prompt)
+
+# Code validation utilities
+def lint_code(code_snippet):
+    """
+    Perform basic linting on Dart code
+    """
+    # Check for common issues
+    issues = []
+    
+    # Check for missing semicolons
+    if re.search(r'}\s*$', code_snippet, re.MULTILINE):
+        issues.append("Missing semicolons")
+        
+    # Check for proper null safety
+    if "?" not in code_snippet and "late " not in code_snippet and "required" not in code_snippet:
+        issues.append("Null safety features not properly utilized")
+        
+    # Check for error handling
+    if "try" not in code_snippet and "catch" not in code_snippet:
+        issues.append("No error handling found")
+        
+    # Check for proper BLoC pattern usage if it's a BLoC file
+    if "bloc" in code_snippet.lower() and "emit(" not in code_snippet:
+        issues.append("BLoC not properly emitting states")
+        
+    return len(issues) == 0
+
+def check_best_practices(code_snippet):
+    """
+    Check if code follows Flutter best practices
+    """
+    best_practices = [
+        # Proper widget structure
+        "extends StatelessWidget" in code_snippet or "extends StatefulWidget" in code_snippet,
+        
+        # Proper imports
+        "import 'package:flutter/" in code_snippet,
+        
+        # Proper constructor
+        "const " in code_snippet and "({" in code_snippet,
+        
+        # Key usage
+        "Key?" in code_snippet,
+        
+        # Documentation
+        "///" in code_snippet or "/*" in code_snippet
+    ]
+    
+    return sum(best_practices) >= 3  # At least 3 best practices should be followed
+
+def validate_generated_code(code_snippet):
+    """
+    Validate generated code against multiple criteria
+    """
+    validation_checks = [
+        lint_code(code_snippet),           # Static analysis
+        check_best_practices(code_snippet), # Design pattern compliance
+    ]
+    
+    return all(validation_checks)
+
+class CodeGenerationContext:
+    """
+    Provides context for code generation based on feature type
+    """
+    def __init__(self):
+        self.design_patterns = {
+            "login": ["BLoC", "Repository Pattern"],
+            "dashboard": ["BLoC", "Repository Pattern"],
+            "settings": ["BLoC", "Repository Pattern"],
+            "list": ["BLoC", "Repository Pattern"],
+            "detail": ["BLoC", "Repository Pattern"],
+            "form": ["BLoC", "Form Validation"],
+        }
+    
+    def get_recommended_architecture(self, feature_type):
+        """
+        Get recommended architecture based on feature type
+        """
+        return self.design_patterns.get(feature_type, ["BLoC"])
+    
+    def get_project_context(self, feature_type, filename):
+        """
+        Generate project context based on feature type and filename
+        """
+        architecture = self.get_recommended_architecture(feature_type)
+        
+        context = f"Feature type: {feature_type}\n"
+        context += f"Recommended architecture: {', '.join(architecture)}\n"
+        
+        if "screen" in filename:
+            context += "This is a UI component that should focus on presentation logic only.\n"
+            context += "Business logic should be delegated to the BLoC.\n"
+        elif "bloc" in filename:
+            context += "This is a BLoC component that should handle business logic.\n"
+            context += "It should process events and emit states.\n"
+        elif "repository" in filename:
+            context += "This is a repository that should abstract data sources.\n"
+            context += "It should provide a clean API for the domain layer.\n"
+        elif "model" in filename:
+            context += "This is a model that should represent domain entities.\n"
+            context += "It should include proper serialization/deserialization.\n"
+        
+        return context
+
+# Initialize code generation context
+code_context = CodeGenerationContext()
 
 # LangGraph 상태 정의
 
@@ -95,6 +236,8 @@ class GraphState(Dict[str, Any]):
     project_dir: str
     status: str
     code: str
+    feature_type: str
+    project_context: str
 
 # pubspec.yaml에 의존성 추가 함수
 
@@ -151,11 +294,21 @@ def chatbot_node(state: GraphState) -> GraphState:
         state["action"] = response_json["action"]
         state["processed_request"] = response_json["processed_request"]
         state["filename"] = response_json["filename"]
+        state["feature_type"] = response_json.get("feature_type", "general")
+        
+        # Generate project context based on feature type and filename
+        state["project_context"] = code_context.get_project_context(
+            state["feature_type"], 
+            state["filename"]
+        )
+        
         return state
     except Exception as e:
         state["status"] = f"Error in chatbot: {e}"
         state["action"] = "other"
         state["filename"] = "lib/main.dart"
+        state["feature_type"] = "general"
+        state["project_context"] = "General Flutter application"
         return state
 
 
@@ -232,10 +385,24 @@ def create_project_node(state: GraphState) -> GraphState:
         response = flutter_chain.invoke({
             "request": state["processed_request"],
             "history": memory.buffer,
-            "filename": state["filename"]
+            "filename": state["filename"],
+            "project_context": state["project_context"]
         })["text"]
         code_match = re.search(r"```dart\n([\s\S]*?)\n```", response)
         dart_code = code_match.group(1) if code_match else response
+        
+        # Validate and improve code if needed
+        if code_match and not validate_generated_code(dart_code):
+            # Try to improve the code with more specific instructions
+            improved_response = flutter_chain.invoke({
+                "request": f"Improve the following code to follow best practices, include proper error handling, and use null safety correctly:\n```dart\n{dart_code}\n```",
+                "history": memory.buffer,
+                "filename": state["filename"],
+                "project_context": state["project_context"]
+            })["text"]
+            improved_code_match = re.search(r"```dart\n([\s\S]*?)\n```", improved_response)
+            if improved_code_match:
+                dart_code = improved_code_match.group(1)
 
         # 파일 경로 설정
         file_path = os.path.join(project_dir, state["filename"])
@@ -306,7 +473,8 @@ def process_existing_project_node(state: GraphState) -> GraphState:
         response = flutter_chain.invoke({
             "request": state["processed_request"],
             "history": memory.buffer,
-            "filename": state["filename"]
+            "filename": state["filename"],
+            "project_context": state["project_context"]
         })["text"]
         code_match = re.search(r"```dart\n([\s\S]*?)\n```", response)
         if code_match:
@@ -412,7 +580,9 @@ def gradio_interface(directory, request, project_dir_state):
         filename="lib/main.dart",
         project_dir=project_dir_state,
         status="",
-        code=""
+        code="",
+        feature_type="general",
+        project_context="General Flutter application"
     )
     result = app_graph.invoke(initial_state)
     return result["status"], result["code"], result["project_dir"]

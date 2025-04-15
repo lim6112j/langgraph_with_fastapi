@@ -30,7 +30,8 @@ load_dotenv()
 # OpenAI API 키 설정
 if not os.getenv("OPENAI_API_KEY"):
     try:
-        os.environ["OPENAI_API_KEY"] = getpass.getpass("Enter Api key for OPENAI")
+        os.environ["OPENAI_API_KEY"] = getpass.getpass(
+            "Enter Api key for OPENAI")
         logger.info("OpenAI API key successfully set")
     except Exception as e:
         logger.error(f"Failed to set OpenAI API key: {e}")
@@ -118,30 +119,33 @@ flutter_chain = LLMChain(llm=llm, prompt=flutter_prompt)
 chatbot_chain = LLMChain(llm=llm, prompt=chatbot_prompt)
 
 # Code validation utilities
+
+
 def lint_code(code_snippet):
     """
     Perform basic linting on Dart code
     """
     # Check for common issues
     issues = []
-    
+
     # Check for missing semicolons
     if re.search(r'}\s*$', code_snippet, re.MULTILINE):
         issues.append("Missing semicolons")
-        
+
     # Check for proper null safety
     if "?" not in code_snippet and "late " not in code_snippet and "required" not in code_snippet:
         issues.append("Null safety features not properly utilized")
-        
+
     # Check for error handling
     if "try" not in code_snippet and "catch" not in code_snippet:
         issues.append("No error handling found")
-        
+
     # Check for proper BLoC pattern usage if it's a BLoC file
     if "bloc" in code_snippet.lower() and "emit(" not in code_snippet:
         issues.append("BLoC not properly emitting states")
-        
+
     return len(issues) == 0
+
 
 def check_best_practices(code_snippet):
     """
@@ -150,21 +154,23 @@ def check_best_practices(code_snippet):
     best_practices = [
         # Proper widget structure
         "extends StatelessWidget" in code_snippet or "extends StatefulWidget" in code_snippet,
-        
+
         # Proper imports
         "import 'package:flutter/" in code_snippet,
-        
+
         # Proper constructor
         "const " in code_snippet and "({" in code_snippet,
-        
+
         # Key usage
         "Key?" in code_snippet,
-        
+
         # Documentation
         "///" in code_snippet or "/*" in code_snippet
     ]
-    
-    return sum(best_practices) >= 3  # At least 3 best practices should be followed
+
+    # At least 3 best practices should be followed
+    return sum(best_practices) >= 3
+
 
 def validate_generated_code(code_snippet):
     """
@@ -172,15 +178,17 @@ def validate_generated_code(code_snippet):
     """
     validation_checks = [
         lint_code(code_snippet),           # Static analysis
-        check_best_practices(code_snippet), # Design pattern compliance
+        check_best_practices(code_snippet),  # Design pattern compliance
     ]
-    
+
     return all(validation_checks)
+
 
 class CodeGenerationContext:
     """
     Provides context for code generation based on feature type
     """
+
     def __init__(self):
         self.design_patterns = {
             "login": ["BLoC", "Repository Pattern"],
@@ -190,22 +198,22 @@ class CodeGenerationContext:
             "detail": ["BLoC", "Repository Pattern"],
             "form": ["BLoC", "Form Validation"],
         }
-    
+
     def get_recommended_architecture(self, feature_type):
         """
         Get recommended architecture based on feature type
         """
         return self.design_patterns.get(feature_type, ["BLoC"])
-    
+
     def get_project_context(self, feature_type, filename):
         """
         Generate project context based on feature type and filename
         """
         architecture = self.get_recommended_architecture(feature_type)
-        
+
         context = f"Feature type: {feature_type}\n"
         context += f"Recommended architecture: {', '.join(architecture)}\n"
-        
+
         if "screen" in filename:
             context += "This is a UI component that should focus on presentation logic only.\n"
             context += "Business logic should be delegated to the BLoC.\n"
@@ -218,8 +226,9 @@ class CodeGenerationContext:
         elif "model" in filename:
             context += "This is a model that should represent domain entities.\n"
             context += "It should include proper serialization/deserialization.\n"
-        
+
         return context
+
 
 # Initialize code generation context
 code_context = CodeGenerationContext()
@@ -295,13 +304,13 @@ def chatbot_node(state: GraphState) -> GraphState:
         state["processed_request"] = response_json["processed_request"]
         state["filename"] = response_json["filename"]
         state["feature_type"] = response_json.get("feature_type", "general")
-        
+
         # Generate project context based on feature type and filename
         state["project_context"] = code_context.get_project_context(
-            state["feature_type"], 
+            state["feature_type"],
             state["filename"]
         )
-        
+
         return state
     except Exception as e:
         state["status"] = f"Error in chatbot: {e}"
@@ -362,7 +371,8 @@ def create_project_node(state: GraphState) -> GraphState:
             text=True
         )
         if create_result.returncode != 0:
-            logger.error(f"Flutter project creation failed: {create_result.stderr}")
+            logger.error(
+                f"Flutter project creation failed: {create_result.stderr}")
             state["status"] = f"Project creation error: {create_result.stderr}"
             return state
 
@@ -390,7 +400,7 @@ def create_project_node(state: GraphState) -> GraphState:
         })["text"]
         code_match = re.search(r"```dart\n([\s\S]*?)\n```", response)
         dart_code = code_match.group(1) if code_match else response
-        
+
         # Validate and improve code if needed
         if code_match and not validate_generated_code(dart_code):
             # Try to improve the code with more specific instructions
@@ -400,7 +410,8 @@ def create_project_node(state: GraphState) -> GraphState:
                 "filename": state["filename"],
                 "project_context": state["project_context"]
             })["text"]
-            improved_code_match = re.search(r"```dart\n([\s\S]*?)\n```", improved_response)
+            improved_code_match = re.search(
+                r"```dart\n([\s\S]*?)\n```", improved_response)
             if improved_code_match:
                 dart_code = improved_code_match.group(1)
 

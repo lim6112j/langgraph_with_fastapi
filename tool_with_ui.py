@@ -266,6 +266,24 @@ def create_task_table(tasks, statuses, priorities):
     df = pd.DataFrame(data)
     return df
 
+def manage_tasks(task_table, action, task_index):
+    """Manage tasks in the task table"""
+    try:
+        if action == 'execute':
+            # Mark task as completed
+            task_table.loc[task_index, 'Status'] = 'Completed'
+            result = f"Task {task_index} marked as completed"
+        elif action == 'delete':
+            # Delete the task
+            task_table = task_table.drop(task_index)
+            result = f"Task {task_index} deleted"
+        else:
+            result = "Invalid action. Use 'execute' or 'delete'"
+        
+        return task_table, result
+    except Exception as e:
+        return task_table, f"Error managing task: {e}"
+
 demo = gr.Interface(
     fn=transcribe_and_respond,
     inputs=[gr.Audio(sources=["microphone", "upload"], type="filepath")],

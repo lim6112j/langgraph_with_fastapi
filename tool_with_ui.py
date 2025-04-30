@@ -237,13 +237,19 @@ def get_response(prompt):
         results.append(response['message']['content'])
     print(response['message']['content'])
     return results, task_table
+## for mac
+# pipe = pipeline("automatic-speech-recognition",
+#                "openai/whisper-large-v3-turbo",
+#                torch_dtype=torch.float16,
+#                device="mps")
+
+# for linux cuda, Set device to CUDA if available, otherwise CPU
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 pipe = pipeline("automatic-speech-recognition",
-                "openai/whisper-large-v3-turbo",
-                torch_dtype=torch.float16,
-                device="mps")
-
-
+              "openai/whisper-large-v3-turbo",
+              torch_dtype=torch.float16,
+              device=device)
 
 def transcribe_and_respond(audio_input):
     if audio_input is None:

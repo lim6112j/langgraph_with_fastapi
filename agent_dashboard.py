@@ -79,12 +79,18 @@ pipe = pipeline("automatic-speech-recognition",
                 device=device)
 
 # handle audio input, TODO: session or user_id setting
-def run_agent(audio_input, session_id: Union[str, None] = None, thread_id: Union[str, None] = "thread_1"):
-    if audio_input is None:
-        raise gr.Error("No audio file")
-    transcription = pipe(audio_input, generate_kwargs={"task": "transcribe"}, return_timestamps=True)["text"]
-    config = {"configurable": {"thread_id": thread_id}}
-    return transcription, stream_graph_updates(transcription, config)
+def run_agent(audio_input, chat_input, session_id: Union[str, None] = None, thread_id: Union[str, None] = "thread_1"):
+    if audio_input is not None:
+        # Process audio input
+        transcription = pipe(audio_input, generate_kwargs={"task": "transcribe"}, return_timestamps=True)["text"]
+        config = {"configurable": {"thread_id": thread_id}}
+        return transcription, stream_graph_updates(transcription, config)
+    elif chat_input is not None and chat_input.strip() != "":
+        # Process text input directly
+        config = {"configurable": {"thread_id": thread_id}}
+        return "", stream_graph_updates(chat_input, config)  # Return empty string for transcription if using text
+    else:
+        raise gr.Error("No audio file or text input provided")
 
 # WEB UI draw
 import gradio as gr
@@ -106,10 +112,11 @@ with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             audio_input = gr.Audio(sources=["microphone", "upload"], type="filepath")
+            chat_input = gr.Textbox(label="Type your message")  # New addition for keyboard chat
             transcript_output = gr.Textbox(label="Transcription")
             ai_response_output = gr.Textbox(label="AI Response")
 #            ai_state_output = gr.Textbox(label="AI State")
-            inputs=[audio_input]
+            inputs=[audio_input, chat_input]  # Updated to include chat_input
             outputs=[
                 transcript_output,
                 ai_response_output,
@@ -137,6 +144,6 @@ with gr.Blocks() as demo:
         # allow_Columngging="never"
 #    ai_response_output.change(get_data_list, [], data)
     ai_response_output.change(get_data, [], data)
-    clear_btn.click(lambda :None, None, audio_input)
-    submit_btn.click(fn=run_agent, inputs= inputs, outputs=outputs, api_name="run_agent")
+    clear_btn.click(lambda :None, None, [audio_input, chat_input])  # Clear both inputs
+    submit_btn.click(fn=run_agent, inputs=[audio_input, chat_input], outputs=outputs, api_name="run_agent")
 demo.launch(server_port=8080)

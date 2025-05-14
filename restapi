@@ -55,17 +55,19 @@ POST https://api-hb.mobble.co.kr:8443/Login/CertNumber
 content-type: :jType
 ln: kor
 accept: :jType
-{"id": "cielDevAdmin1"}
+{"id": "cielDevAdmin1", "model": "model"}
 
 :certnumber = 692379
 # ciel hello bus login
 POST https://api-hb.mobble.co.kr:8443/login
 content-type: :jType
 ln: kor
+accept: :jType
 {"id": "cielDevAdmin1", "pw": "a12345678!", "certNumber": :certnumber}
 
 # ciel hello bus token
-:token = "eyJhbGciOiJBMTI4Q0JDLUhTMjU2IiwidHlwIjoiSldUIn0.eyJBcHAiOiLrqqjruJQg7Ya16re8IOq0gOumrOyekCDsm7kiLCJJZCI6ImNpZWxEZXZBZG1pbjEiLCJuYmYiOjE3NDcxOTAwNDYsImV4cCI6MTc0ODM5OTY0NiwiaWF0IjoxNzQ3MTkwMDQ2fQ.yN5Euvk-JGOCtaAxDBDeIlp7ztQqklvR46TZrZZGIIo"
+:token = "eyJhbGciOiJBMTI4Q0JDLUhTMjU2IiwidHlwIjoiSldUIn0.eyJBcHAiOiLrqqjruJQg7Ya16re8IOq0gOumrOyekCDsm7kiLCJJZCI6ImNpZWxEZXZBZG1pbjEiLCJuYmYiOjE3NDcyMDU1MjAsImV4cCI6MTc0ODQxNTEyMCwiaWF0IjoxNzQ3MjA1NTIwfQ.kWUs-WuTsF4ZqsWDXlGx-VyII0UeROv2GBFC1n394FU"
 # ciel hello bus dashboard
 GET https://api-hb.mobble.co.kr:8443/Dashboard?companyId=20257&ln=kor
-Authorization: Bearer :token
+accesstoken: :token
+ln: kor

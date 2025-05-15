@@ -115,11 +115,16 @@ def get_data_from_site(state: State, keyword: str):
 def get_dashboard_info(state: State, tool_call_id: Annotated[str, InjectedToolCallId]):
     """get dashboard data"""
     try:
+        # Get access token from environment variable
+        access_token = os.getenv("CIEL_HELLOBUS_ACCESS_TOKEN")
+        if not access_token:
+            raise ValueError("CIEL_HELLOBUS_ACCESS_TOKEN not found in environment variables")
+            
         # API endpoint and headers
         conn = http.client.HTTPSConnection("api-hb.mobble.co.kr", 8443)
         headers = {
             'ln': 'kor',
-            'accesstoken': 'token'
+            'accesstoken': access_token
         }
         conn.request("GET", "/LineRunningCondition/LineOperateStatus?coNo=20257&goWork=1", headers=headers)
         res = conn.getresponse()

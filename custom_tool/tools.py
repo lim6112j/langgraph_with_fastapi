@@ -11,11 +11,13 @@ import http.client
 import shutil
 import glob
 
+
 class State(TypedDict):
     messages: Annotated[list, add_messages]
     menus: list
     routes: list
     chart_data: list
+
 
 @tool
 def get_routes(state: State, start: str, destination: str,  tool_call_id: Annotated[str, InjectedToolCallId]):
@@ -32,10 +34,10 @@ def get_routes(state: State, start: str, destination: str,  tool_call_id: Annota
     lats = df["latitude"].tolist()
     loc_dict = {names[i]: (lons[i], lats[i]) for i in range(0, len(names))}
     start_loc = str(loc_dict[start][0]) + ',' + str(loc_dict[start][1])
-    destination_loc = str(loc_dict[destination][0]) + ',' + str(loc_dict[destination][1])
+    destination_loc = str(loc_dict[destination][0]) + \
+        ',' + str(loc_dict[destination][1])
     locations = start_loc + ';' + destination_loc
 #    print(locations)
-
 
     OSRM_API = os.getenv("OSRM_API")
     # http://localhost:5001/route/v1/driving/127.919323,36.809656;128.080629,36.699223?steps=true
@@ -59,28 +61,32 @@ def get_routes(state: State, start: str, destination: str,  tool_call_id: Annota
 #    fig.show()
 #    return f"Available routes:\n{routes}"
     return Command(
-         update={
-             "routes": routes,
-             "messages": [
-                 ToolMessage(routes_bytes, tool_call_id=tool_call_id)
-             ],
-         }
+        update={
+            "routes": routes,
+            "messages": [
+                ToolMessage(routes_bytes, tool_call_id=tool_call_id)
+            ],
+        }
     )
+
+
 @tool
-def get_menus(state: State,tool_call_id: Annotated[str, InjectedToolCallId]):
+def get_menus(state: State, tool_call_id: Annotated[str, InjectedToolCallId]):
     """getting menus of restaurant
     """
     df_menus = pd.read_csv("./data/menus.csv")
     dict = df_menus.to_json(orient="records")
     menus = f"{dict}"
     return Command(
-         update={
-             "menus": menus,
-             "messages": [
-                 ToolMessage(menus, tool_call_id=tool_call_id)
-             ],
-         }
+        update={
+            "menus": menus,
+            "messages": [
+                ToolMessage(menus, tool_call_id=tool_call_id)
+            ],
+        }
     )
+
+
 @tool
 def get_data_from_site(state: State, keyword: str):
     """get web data from website
@@ -89,7 +95,7 @@ def get_data_from_site(state: State, keyword: str):
     try:
         import urllib.parse
         safe_keyword = urllib.parse.quote(keyword)
-        headers={'user-agent': "Emacs Restclient"}
+        headers = {'user-agent': "Emacs Restclient"}
         conn = http.client.HTTPSConnection("namu.wiki")
         conn.request("GET", "/Search?q=" + safe_keyword, headers=headers)
         res = conn.getresponse()
@@ -104,28 +110,36 @@ def get_data_from_site(state: State, keyword: str):
         html_str = "not found"
     return f"{html_str}"
 
+
 @tool
 def get_dashboard_info(state: State):
     """get dashboard data"""
-    df = pd.read_csv("./data/dashboard.csv")
-    dict = df.to_json(orient="records")
-    return f"{dict}"
+    # df = pd.read_csv("./data/dashboard.csv")
+    # dict = df.to_json(orient="records")
+    # return f"{dict}"
+    df = pd.read_json("./data/dashboard_ciel.json")
+    return f"{df}"
+
+
 @tool
 def get_chart_data(state: State, data: str, tool_call_id: Annotated[str, InjectedToolCallId]):
     """draw chart"""
     return Command(
         update={
             "chart_data": data,
-             "messages": [
-                 ToolMessage(data, tool_call_id=tool_call_id)
-             ],
+            "messages": [
+                ToolMessage(data, tool_call_id=tool_call_id)
+            ],
         }
     )
+
+
 @tool
 def get_postgresql_data(state: State, query: str, tool_call_id: Annotated[str, InjectedToolCallId]):
     """get postgreql data with given query"""
     data = "test"
     return f"{data}"
+
 
 @tool
 def file_system_create_file(state: State, filename: str, content: str, mode: str = 'text'):
@@ -136,6 +150,7 @@ def file_system_create_file(state: State, filename: str, content: str, mode: str
         return f"File '{filename}' created successfully"
     except Exception as e:
         return f"Error creating file: {e}"
+
 
 @tool
 def file_system_read_file(state: State, filename: str, mode: str = 'text'):
@@ -148,6 +163,7 @@ def file_system_read_file(state: State, filename: str, mode: str = 'text'):
         return f"File '{filename}' not found"
     except Exception as e:
         return f"Error reading file: {e}"
+
 
 @tool
 def file_system_delete_file(state: State, path: str, recursive: bool = False):
@@ -166,6 +182,7 @@ def file_system_delete_file(state: State, path: str, recursive: bool = False):
     except Exception as e:
         return f"Error deleting {path}: {e}"
 
+
 @tool
 def file_system_list_files(state: State, path: str = '.', recursive: bool = False, pattern: str = None):
     """List files in a directory"""
@@ -174,10 +191,11 @@ def file_system_list_files(state: State, path: str = '.', recursive: bool = Fals
             files = glob.glob(os.path.join(path, '**'), recursive=True)
         else:
             files = glob.glob(os.path.join(path, '*'))
-        
+
         if pattern:
-            files = [f for f in files if glob.fnmatch.fnmatch(os.path.basename(f), pattern)]
-        
+            files = [f for f in files if glob.fnmatch.fnmatch(
+                os.path.basename(f), pattern)]
+
         return json.dumps(files)
     except Exception as e:
         return f"Error listing files: {e}"

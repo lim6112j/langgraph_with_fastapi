@@ -171,6 +171,31 @@ def get_chart_data(state: State, data: str, tool_call_id: Annotated[str, Injecte
 
 
 @tool
+def get_swagger_data(state: State, url: str, tool_call_id: Annotated[str, InjectedToolCallId]):
+    """get swagger, openapi data"""
+    try:
+        conn = http.client.HTTPSConnection(url)
+        conn.request("GET", "/swagger.json")
+        res = conn.getresponse()
+        data_bytes = res.read()
+        conn.close()
+
+        # Convert response to JSON
+        json_str = data_bytes.decode('utf8').replace("'", '"')
+        print(f"got data from ciel api => {json_str}")
+        # Return the data
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(json_str, tool_call_id=tool_call_id)
+                ],
+            }
+        )
+    except Exception as e:
+        print(f"Error fetching swagger data: {e}")
+
+
+@tool
 def get_postgresql_data(state: State, query: str, tool_call_id: Annotated[str, InjectedToolCallId]):
     """get postgreql data with given query"""
     data = "test"

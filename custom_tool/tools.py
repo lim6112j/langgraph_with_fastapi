@@ -112,14 +112,44 @@ def get_data_from_site(state: State, keyword: str):
 
 
 @tool
-def get_dashboard_info(state: State):
+def get_dashboard_info(state: State, tool_call_id: Annotated[str, InjectedToolCallId]):
     """get dashboard data"""
-    # df = pd.read_csv("./data/dashboard.csv")
-    # dict = df.to_json(orient="records")
-    # return f"{dict}"
-    df = pd.read_json("./data/dashboard_ciel.json")
-    print(f"\n--------------------df => {df}")
-    return f"{df}"
+    try:
+        # API endpoint and headers
+        conn = http.client.HTTPSConnection("api-hb.mobble.co.kr", 8443)
+        headers = {
+            'ln': 'kor',
+            'accesstoken': 'token'
+        }
+        conn.request("GET", "/LineRunningCondition/LineOperateStatus?coNo=20257&goWork=1", headers=headers)
+        res = conn.getresponse()
+        data_bytes = res.read()
+        conn.close()
+        
+        # Convert response to JSON
+        json_str = data_bytes.decode('utf8').replace("'", '"')
+        data = json.loads(json_str)
+        
+        # Return the data
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(json_str, tool_call_id=tool_call_id)
+                ],
+            }
+        )
+    except Exception as e:
+        # Fallback to CSV if API fails
+        df = pd.read_csv("./data/dashboard.csv")
+        dict_data = df.to_json(orient="records")
+        print(f"API error, using fallback data: {e}")
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(dict_data, tool_call_id=tool_call_id)
+                ],
+            }
+        )
 
 
 @tool

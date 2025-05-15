@@ -118,6 +118,7 @@ def get_dashboard_info(state: State):
     # dict = df.to_json(orient="records")
     # return f"{dict}"
     df = pd.read_json("./data/dashboard_ciel.json")
+    print(f"\n--------------------df => {df}")
     return f"{df}"
 
 

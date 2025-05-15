@@ -118,23 +118,24 @@ def get_dashboard_info(state: State, tool_call_id: Annotated[str, InjectedToolCa
         # Get access token from environment variable
         access_token = os.getenv("CIEL_HELLOBUS_ACCESS_TOKEN")
         if not access_token:
-            raise ValueError("CIEL_HELLOBUS_ACCESS_TOKEN not found in environment variables")
-            
+            raise ValueError(
+                "CIEL_HELLOBUS_ACCESS_TOKEN not found in environment variables")
+
         # API endpoint and headers
         conn = http.client.HTTPSConnection("api-hb.mobble.co.kr", 8443)
         headers = {
             'ln': 'kor',
             'accesstoken': access_token
         }
-        conn.request("GET", "/LineRunningCondition/LineOperateStatus?coNo=20257&goWork=1", headers=headers)
+        conn.request(
+            "GET", "/LineRunningCondition/LineOperateStatus?coNo=20257&goWork=1", headers=headers)
         res = conn.getresponse()
         data_bytes = res.read()
         conn.close()
-        
+
         # Convert response to JSON
         json_str = data_bytes.decode('utf8').replace("'", '"')
-        data = json.loads(json_str)
-        
+        print(f"got data from ciel api => {json_str}")
         # Return the data
         return Command(
             update={
@@ -145,8 +146,7 @@ def get_dashboard_info(state: State, tool_call_id: Annotated[str, InjectedToolCa
         )
     except Exception as e:
         # Fallback to CSV if API fails
-        df = pd.read_csv("./data/dashboard.csv")
-        dict_data = df.to_json(orient="records")
+        dict_data = pd.read_json("./data/dashboard_ciel.json")
         print(f"API error, using fallback data: {e}")
         return Command(
             update={

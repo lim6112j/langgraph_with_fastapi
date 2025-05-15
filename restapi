@@ -48,26 +48,3 @@ GET http://:osrm/route/v1/driving/127.027458,37.497467;127.033497,37.485076?step
 # namu wiki
 GET https://namu.wiki/Search?q=프로젝트%20헤일메리
 User-Agent: Emacs Restclient
-
-
-# ciel hello bus certnumber
-POST https://api-hb.mobble.co.kr:8443/Login/CertNumber
-content-type: :jType
-ln: kor
-accept: :jType
-{"id": "cielDevAdmin1", "model": "model"}
-
-:certnumber = 692379
-# ciel hello bus login
-POST https://api-hb.mobble.co.kr:8443/login
-content-type: :jType
-ln: kor
-accept: :jType
-{"id": "cielDevAdmin1", "pw": "a12345678!", "certNumber": :certnumber}
-
-# ciel hello bus token
-:token = "eyJhbGciOiJBMTI4Q0JDLUhTMjU2IiwidHlwIjoiSldUIn0.eyJBcHAiOiLrqqjruJQg7Ya16re8IOq0gOumrOyekCDsm7kiLCJJZCI6ImNpZWxEZXZBZG1pbjEiLCJuYmYiOjE3NDcyMDU1MjAsImV4cCI6MTc0ODQxNTEyMCwiaWF0IjoxNzQ3MjA1NTIwfQ.kWUs-WuTsF4ZqsWDXlGx-VyII0UeROv2GBFC1n394FU"
-# ciel hello bus dashboard
-GET https://api-hb.mobble.co.kr:8443/Dashboard?companyId=20257&ln=kor
-accesstoken: :token
-ln: kor

@@ -191,14 +191,23 @@ with gr.Blocks() as demo:
     clear_btn.click(lambda: None, None, [audio_input, chat_input])
     submit_btn.click(fn=run_agent, inputs=[
                      audio_input, chat_input], outputs=outputs, api_name="run_agent")
-# Telegram bot integration
+# Telegram bot integration - moved to after Gradio launch to avoid hot-reload conflicts
+
+demo.launch(server_port=8081, prevent_thread_lock=True)
+
+# Telegram bot integration - placed after Gradio launch to avoid hot-reload conflicts
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 telegram_thread = None
 telegram_bot_running = False
 
 if TELEGRAM_BOT_TOKEN:
-    bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
-
+    # Use a global variable to track if we've already initialized the bot
+    if 'bot' not in globals():
+        bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+        globals()['bot'] = bot
+    else:
+        bot = globals()['bot']
+        
     # Handler for text messages
     @bot.message_handler(content_types=['text'])
     def handle_text(message):
@@ -238,36 +247,46 @@ if TELEGRAM_BOT_TOKEN:
         except Exception as e:
             bot.reply_to(message, f"Error processing voice message: {str(e)}")
 
-    # Function to start the bot in a separate thread
+    # Function to start the bot in a separate thread with singleton pattern
     def start_telegram_bot():
         global telegram_bot_running
         if not telegram_bot_running:
             print("Starting Telegram bot...")
             telegram_bot_running = True
             try:
-                bot.polling(none_stop=True)
+                # Use skip_pending=True to ignore messages that arrived while the bot was offline
+                bot.polling(none_stop=True, skip_pending=True)
             except Exception as e:
                 print(f"Telegram bot error: {str(e)}")
                 telegram_bot_running = False
 
     # Only start the bot if it's not already running
     if not telegram_bot_running:
-        telegram_thread = Thread(target=start_telegram_bot)
-        telegram_thread.daemon = True
-        telegram_thread.start()
+        # Check if there's an existing thread and it's alive
+        if 'telegram_thread' in globals() and globals()['telegram_thread'] is not None:
+            if globals()['telegram_thread'].is_alive():
+                print("Telegram bot thread is already running")
+            else:
+                telegram_thread = Thread(target=start_telegram_bot)
+                telegram_thread.daemon = True
+                telegram_thread.start()
+                globals()['telegram_thread'] = telegram_thread
+        else:
+            telegram_thread = Thread(target=start_telegram_bot)
+            telegram_thread.daemon = True
+            telegram_thread.start()
+            globals()['telegram_thread'] = telegram_thread
 else:
     print("TELEGRAM_BOT_TOKEN not found. Telegram bot not started.")
 
 # Add cleanup for Telegram bot when the app is closed
 def cleanup():
     global telegram_bot_running
-    if telegram_bot_running and bot:
+    if telegram_bot_running and 'bot' in globals():
         print("Stopping Telegram bot...")
-        bot.stop_polling()
+        globals()['bot'].stop_polling()
         telegram_bot_running = False
 
 # Register cleanup function to be called when the app is closed
 import atexit
 atexit.register(cleanup)
-
-demo.launch(server_port=8081, prevent_thread_lock=True)

@@ -206,22 +206,24 @@ def start_telegram_integration():
     if not TELEGRAM_BOT_TOKEN:
         print("TELEGRAM_BOT_TOKEN not found. Telegram bot not started.")
         return
-        
-    # Use a lock file to prevent multiple instances
+    
+    # Clean up any existing lock file at startup
     LOCK_FILE = "telegram_bot.lock"
+    if os.path.exists(LOCK_FILE):
+        try:
+            os.remove(LOCK_FILE)
+            print("Cleaned up existing lock file at startup")
+        except:
+            pass
     
     # Check for existing lock file
     if os.path.exists(LOCK_FILE):
         try:
-            # Check if lock is stale (older than 5 minutes)
-            if time.time() - os.path.getmtime(LOCK_FILE) > 300:
-                os.remove(LOCK_FILE)
-                print("Removed stale lock file")
-            else:
-                print("Another Telegram bot instance is already running")
-                return
+            # Force remove the lock file - we're starting fresh
+            os.remove(LOCK_FILE)
+            print("Removed existing lock file")
         except Exception as e:
-            print(f"Error checking lock file: {e}")
+            print(f"Error removing lock file: {e}")
             return
     
     # Create lock file

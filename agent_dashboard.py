@@ -193,6 +193,8 @@ with gr.Blocks() as demo:
                      audio_input, chat_input], outputs=outputs, api_name="run_agent")
 # Telegram bot integration
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+telegram_thread = None
+telegram_bot_running = False
 
 if TELEGRAM_BOT_TOKEN:
     bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
@@ -238,14 +240,34 @@ if TELEGRAM_BOT_TOKEN:
 
     # Function to start the bot in a separate thread
     def start_telegram_bot():
-        print("Starting Telegram bot...")
-        bot.polling(none_stop=True)
+        global telegram_bot_running
+        if not telegram_bot_running:
+            print("Starting Telegram bot...")
+            telegram_bot_running = True
+            try:
+                bot.polling(none_stop=True)
+            except Exception as e:
+                print(f"Telegram bot error: {str(e)}")
+                telegram_bot_running = False
 
-    # Start the bot in a background thread
-    telegram_thread = Thread(target=start_telegram_bot)
-    telegram_thread.daemon = True
-    telegram_thread.start()
+    # Only start the bot if it's not already running
+    if not telegram_bot_running:
+        telegram_thread = Thread(target=start_telegram_bot)
+        telegram_thread.daemon = True
+        telegram_thread.start()
 else:
     print("TELEGRAM_BOT_TOKEN not found. Telegram bot not started.")
 
-demo.launch(server_port=8081)
+# Add cleanup for Telegram bot when the app is closed
+def cleanup():
+    global telegram_bot_running
+    if telegram_bot_running and bot:
+        print("Stopping Telegram bot...")
+        bot.stop_polling()
+        telegram_bot_running = False
+
+# Register cleanup function to be called when the app is closed
+import atexit
+atexit.register(cleanup)
+
+demo.launch(server_port=8081, prevent_thread_lock=True)

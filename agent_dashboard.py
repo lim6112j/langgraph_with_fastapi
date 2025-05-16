@@ -27,15 +27,39 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from dotenv import load_dotenv
+from typing import Optional
+from langchain_openai import ChatOpenAI
+from pydantic import Field, SecretStr
+from langchain_core.utils.utils import secret_from_env
 load_dotenv()
+
+
+class ChatOpenRouter(ChatOpenAI):
+    openai_api_key: Optional[SecretStr] = Field(
+        alias="api_key", default_factory=secret_from_env("OPENROUTER_API_KEY", default=None)
+    )
+
+    @property
+    def lc_secrets(self) -> dict[str, str]:
+        return {"openai_api_key": "OPENROUTER_API_KEY"}
+
+    def __init__(self,
+                 openai_api_key: Optional[str] = None,
+                 **kwargs):
+        openai_api_key = openai_api_key or os.environ.get("OPENROUTER_API_KEY")
+        super().__init__(base_url="https://openrouter.ai/api/v1",
+                         openai_api_key=openai_api_key, **kwargs)
 
 
 tools = [get_dashboard_info, get_chart_data]
 # LLM model : LLAMA, Claude
 LLM_MODEL = os.getenv("LLM_MODEL")
 
-llm = ChatOllama(model="llama3.2", temperature=0) if LLM_MODEL == "llama" else ChatAnthropic(
-    model="claude-3-5-sonnet-20240620")
+# llm = ChatOllama(model="llama3.2", temperature=0) if LLM_MODEL == "llama" else ChatAnthropic(
+#    model="claude-3-5-sonnet-20240620")
+
+# llm = ChatOpenRouter(model_name="anthropic/claude-3.7-sonnet:thinking")
+llm = ChatOpenRouter(model_name="anthropic/claude-3.5-sonnet:20240620")
 llm_with_tools = llm.bind_tools(tools)
 
 # chatbot node
@@ -188,22 +212,25 @@ if TELEGRAM_BOT_TOKEN:
             # Download the voice message
             file_info = bot.get_file(message.voice.file_id)
             downloaded_file = bot.download_file(file_info.file_path)
-            
+
             # Save the voice message temporarily
             voice_file_path = f"temp_voice_{message.chat.id}.ogg"
             with open(voice_file_path, 'wb') as voice_file:
                 voice_file.write(downloaded_file)
-            
+
             # Process with whisper
-            transcription = pipe(voice_file_path, generate_kwargs={"task": "transcribe"}, return_timestamps=True)["text"]
-            
+            transcription = pipe(voice_file_path, generate_kwargs={
+                                 "task": "transcribe"}, return_timestamps=True)["text"]
+
             # Get response from agent
-            config = {"configurable": {"thread_id": f"telegram_{message.chat.id}"}}
+            config = {"configurable": {
+                "thread_id": f"telegram_{message.chat.id}"}}
             response = stream_graph_updates(transcription, config)
-            
+
             # Send transcription and response
-            bot.reply_to(message, f"Transcription: {transcription}\n\nResponse: {response}")
-            
+            bot.reply_to(
+                message, f"Transcription: {transcription}\n\nResponse: {response}")
+
             # Clean up
             os.remove(voice_file_path)
         except Exception as e:
@@ -221,4 +248,4 @@ if TELEGRAM_BOT_TOKEN:
 else:
     print("TELEGRAM_BOT_TOKEN not found. Telegram bot not started.")
 
-demo.launch(server_port=8080)
+demo.launch(server_port=8081)

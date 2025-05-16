@@ -13,6 +13,8 @@ import os
 from typing import Annotated, Union, Dict, List
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
+import telebot
+from threading import Thread
 
 
 from langchain_core.messages import ToolMessage, SystemMessage
@@ -165,4 +167,58 @@ with gr.Blocks() as demo:
     clear_btn.click(lambda: None, None, [audio_input, chat_input])
     submit_btn.click(fn=run_agent, inputs=[
                      audio_input, chat_input], outputs=outputs, api_name="run_agent")
+# Telegram bot integration
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+if TELEGRAM_BOT_TOKEN:
+    bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+
+    # Handler for text messages
+    @bot.message_handler(content_types=['text'])
+    def handle_text(message):
+        user_input = message.text
+        config = {"configurable": {"thread_id": f"telegram_{message.chat.id}"}}
+        response = stream_graph_updates(user_input, config)
+        bot.reply_to(message, response)
+
+    # Handler for voice messages
+    @bot.message_handler(content_types=['voice'])
+    def handle_voice(message):
+        try:
+            # Download the voice message
+            file_info = bot.get_file(message.voice.file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+            
+            # Save the voice message temporarily
+            voice_file_path = f"temp_voice_{message.chat.id}.ogg"
+            with open(voice_file_path, 'wb') as voice_file:
+                voice_file.write(downloaded_file)
+            
+            # Process with whisper
+            transcription = pipe(voice_file_path, generate_kwargs={"task": "transcribe"}, return_timestamps=True)["text"]
+            
+            # Get response from agent
+            config = {"configurable": {"thread_id": f"telegram_{message.chat.id}"}}
+            response = stream_graph_updates(transcription, config)
+            
+            # Send transcription and response
+            bot.reply_to(message, f"Transcription: {transcription}\n\nResponse: {response}")
+            
+            # Clean up
+            os.remove(voice_file_path)
+        except Exception as e:
+            bot.reply_to(message, f"Error processing voice message: {str(e)}")
+
+    # Function to start the bot in a separate thread
+    def start_telegram_bot():
+        print("Starting Telegram bot...")
+        bot.polling(none_stop=True)
+
+    # Start the bot in a background thread
+    telegram_thread = Thread(target=start_telegram_bot)
+    telegram_thread.daemon = True
+    telegram_thread.start()
+else:
+    print("TELEGRAM_BOT_TOKEN not found. Telegram bot not started.")
+
 demo.launch(server_port=8080)

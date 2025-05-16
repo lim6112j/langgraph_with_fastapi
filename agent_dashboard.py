@@ -304,24 +304,28 @@ def start_telegram_integration():
     telegram_bot = bot
     telegram_bot_thread = bot_thread
     
-    # Setup signal handlers for clean shutdown
-    import signal
-    
-    def signal_handler(sig, frame):
-        print(f"Received signal {sig}, shutting down Telegram bot...")
-        if 'telegram_bot' in globals() and telegram_bot:
-            telegram_bot.stop_polling()
-        if os.path.exists(LOCK_FILE):
-            os.remove(LOCK_FILE)
-        sys.exit(0)
-    
-    # Register signal handlers
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    # We can't set signal handlers in a non-main thread, so we'll use a different approach
+    print("Telegram bot started successfully")
 
 # Initialize global variables
 telegram_bot = None
 telegram_bot_thread = None
+telegram_lock_file = "telegram_bot.lock"
+
+# Setup signal handlers for clean shutdown in the main thread
+import signal
+
+def signal_handler(sig, frame):
+    print(f"Received signal {sig}, shutting down Telegram bot...")
+    if 'telegram_bot' in globals() and telegram_bot:
+        telegram_bot.stop_polling()
+    if os.path.exists(telegram_lock_file):
+        os.remove(telegram_lock_file)
+    sys.exit(0)
+
+# Register signal handlers in the main thread
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 # Start the Telegram integration after a short delay
 import threading

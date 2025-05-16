@@ -2,28 +2,18 @@
 from transformers import pipeline
 import pandas as pd
 import sys
-import plotly.graph_objects as go
 from helper.gradio_func import get_chart_data_closure
 import gradio as gr
 import torch
 from langchain_ollama import ChatOllama
-from helper.funcs import get_messages_info, get_messages_dashboard_info
-from messages.messages import template
+from helper.funcs import get_messages_api_automation_info
 from custom_tool.tools import State, get_swagger_data
 import os
-from typing import Annotated, Union, Dict, List
-from typing_extensions import TypedDict
-from langgraph.graph.message import add_messages
-
-
-from langchain_core.messages import ToolMessage, SystemMessage
-from langchain_core.tools import InjectedToolCallId, tool
-from langgraph.types import interrupt
-
+from typing import Union, Dict
 
 from langchain_anthropic import ChatAnthropic
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import ToolNode, tools_condition
 from dotenv import load_dotenv
 load_dotenv()
@@ -41,7 +31,7 @@ llm_with_tools = llm.bind_tools(tools)
 
 
 def chatbot(state: State):
-    messages = get_messages_dashboard_info(state["messages"])
+    messages = get_messages_api_automation_info(state["messages"])
 #    print(f"\nstate[messages] => {state['messages']}\n")
 #    print(f"\n[messages] => {messages}\n")
     message = llm_with_tools.invoke(messages)
@@ -123,7 +113,7 @@ def get_data():
 
 
 with gr.Blocks() as demo:
-    gr.Markdown("""# Ciel AI Agent for Dashboard Agent with voice""")
+    gr.Markdown("""# Ciel AI Agent for api automation Agent with voice""")
     with gr.Row():
         with gr.Column():
             audio_input = gr.Audio(

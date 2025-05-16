@@ -193,8 +193,6 @@ with gr.Blocks() as demo:
                      audio_input, chat_input], outputs=outputs, api_name="run_agent")
 # Telegram bot integration - moved to after Gradio launch to avoid hot-reload conflicts
 
-demo.launch(server_port=8081, prevent_thread_lock=True)
-
 # Telegram bot integration - moved to a separate function to avoid immediate execution
 def start_telegram_integration():
     import os.path
@@ -329,4 +327,9 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 # Start the Telegram integration after a short delay
 import threading
-threading.Timer(2.0, start_telegram_integration).start()
+telegram_timer = threading.Timer(2.0, start_telegram_integration)
+telegram_timer.daemon = True
+telegram_timer.start()
+
+# Launch Gradio app last, after setting up everything else
+demo.launch(server_port=8081)

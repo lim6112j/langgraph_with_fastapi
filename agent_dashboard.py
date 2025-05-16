@@ -293,13 +293,22 @@ if TELEGRAM_BOT_TOKEN:
     # Cleanup function to remove lock file when the app is closed
     def cleanup():
         print("Stopping Telegram bot...")
-        if 'bot' in locals():
+        try:
             bot.stop_polling()
-        if os.path.exists(LOCK_FILE):
-            os.remove(LOCK_FILE)
+            if os.path.exists(LOCK_FILE):
+                os.remove(LOCK_FILE)
+                print("Removed lock file during cleanup")
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
 
-    # Register cleanup function
-    import atexit
-    atexit.register(cleanup)
+    # Register cleanup function - only for actual program termination
+    import signal
+    
+    def signal_handler(sig, frame):
+        cleanup()
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 else:
     print("Telegram bot not started.")

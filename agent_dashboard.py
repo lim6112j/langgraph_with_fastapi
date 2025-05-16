@@ -195,53 +195,59 @@ with gr.Blocks() as demo:
 
 demo.launch(server_port=8081, prevent_thread_lock=True)
 
-# Create a file-based lock to prevent multiple bot instances
-import os.path
-import time
-
-# Telegram bot integration
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-
-# Only proceed if we have a token
-if TELEGRAM_BOT_TOKEN:
+# Telegram bot integration - moved to a separate function to avoid immediate execution
+def start_telegram_integration():
+    import os.path
+    import time
+    import threading
+    
+    # Get token from environment
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not TELEGRAM_BOT_TOKEN:
+        print("TELEGRAM_BOT_TOKEN not found. Telegram bot not started.")
+        return
+        
+    # Use a lock file to prevent multiple instances
     LOCK_FILE = "telegram_bot.lock"
     
-    # Check if another instance is running by looking for a lock file
+    # Check for existing lock file
     if os.path.exists(LOCK_FILE):
         try:
-            # Check if the lock file is stale (older than 5 minutes)
-            if time.time() - os.path.getmtime(LOCK_FILE) > 300:  # 5 minutes in seconds
-                # Lock file is stale, remove it
+            # Check if lock is stale (older than 5 minutes)
+            if time.time() - os.path.getmtime(LOCK_FILE) > 300:
                 os.remove(LOCK_FILE)
                 print("Removed stale lock file")
             else:
                 print("Another Telegram bot instance is already running")
-                # Skip bot initialization
-                TELEGRAM_BOT_TOKEN = None
+                return
         except Exception as e:
             print(f"Error checking lock file: {e}")
+            return
     
-    # Create lock file if we're proceeding
-    if TELEGRAM_BOT_TOKEN:
-        try:
-            with open(LOCK_FILE, 'w') as f:
-                f.write(str(time.time()))
-            print("Created Telegram bot lock file")
-        except Exception as e:
-            print(f"Error creating lock file: {e}")
-
-# Initialize the bot only if we have a token and no other instance is running
-if TELEGRAM_BOT_TOKEN:
+    # Create lock file
+    try:
+        with open(LOCK_FILE, 'w') as f:
+            f.write(str(time.time()))
+        print("Created Telegram bot lock file")
+    except Exception as e:
+        print(f"Error creating lock file: {e}")
+        return
+    
+    # Initialize bot
     bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
     
     # Handler for text messages
     @bot.message_handler(content_types=['text'])
     def handle_text(message):
-        user_input = message.text
-        config = {"configurable": {"thread_id": f"telegram_{message.chat.id}"}}
-        response = stream_graph_updates(user_input, config)
-        bot.reply_to(message, response)
-
+        try:
+            user_input = message.text
+            config = {"configurable": {"thread_id": f"telegram_{message.chat.id}"}}
+            response = stream_graph_updates(user_input, config)
+            bot.reply_to(message, response)
+        except Exception as e:
+            print(f"Error handling text message: {e}")
+            bot.reply_to(message, f"Sorry, an error occurred: {str(e)}")
+    
     # Handler for voice messages
     @bot.message_handler(content_types=['voice'])
     def handle_voice(message):
@@ -249,66 +255,72 @@ if TELEGRAM_BOT_TOKEN:
             # Download the voice message
             file_info = bot.get_file(message.voice.file_id)
             downloaded_file = bot.download_file(file_info.file_path)
-
+            
             # Save the voice message temporarily
             voice_file_path = f"temp_voice_{message.chat.id}.ogg"
             with open(voice_file_path, 'wb') as voice_file:
                 voice_file.write(downloaded_file)
-
+            
             # Process with whisper
             transcription = pipe(voice_file_path, generate_kwargs={
                                 "task": "transcribe"}, return_timestamps=True)["text"]
-
+            
             # Get response from agent
-            config = {"configurable": {
-                "thread_id": f"telegram_{message.chat.id}"}}
+            config = {"configurable": {"thread_id": f"telegram_{message.chat.id}"}}
             response = stream_graph_updates(transcription, config)
-
+            
             # Send transcription and response
-            bot.reply_to(
-                message, f"Transcription: {transcription}\n\nResponse: {response}")
-
+            bot.reply_to(message, f"Transcription: {transcription}\n\nResponse: {response}")
+            
             # Clean up
             os.remove(voice_file_path)
         except Exception as e:
+            print(f"Error processing voice message: {e}")
             bot.reply_to(message, f"Error processing voice message: {str(e)}")
-
-    # Start the bot in a separate thread
-    def start_telegram_bot():
+    
+    # Function to run the bot
+    def run_bot():
         print("Starting Telegram bot...")
         try:
             # Use skip_pending=True to ignore messages that arrived while the bot was offline
-            bot.polling(none_stop=True, skip_pending=True)
+            bot.infinity_polling(skip_pending=True, timeout=60)
         except Exception as e:
-            print(f"Telegram bot error: {str(e)}")
-            # Remove lock file on error
+            print(f"Telegram bot error: {e}")
+        finally:
+            # Always clean up the lock file when the bot stops
             if os.path.exists(LOCK_FILE):
                 os.remove(LOCK_FILE)
-
-    # Start the bot thread
-    telegram_thread = Thread(target=start_telegram_bot)
-    telegram_thread.daemon = True
-    telegram_thread.start()
-
-    # Cleanup function to remove lock file when the app is closed
-    def cleanup():
-        print("Stopping Telegram bot...")
-        try:
-            bot.stop_polling()
-            if os.path.exists(LOCK_FILE):
-                os.remove(LOCK_FILE)
-                print("Removed lock file during cleanup")
-        except Exception as e:
-            print(f"Error during cleanup: {e}")
-
-    # Register cleanup function - only for actual program termination
+                print("Removed lock file after bot stopped")
+    
+    # Start the bot in a separate thread
+    bot_thread = threading.Thread(target=run_bot)
+    bot_thread.daemon = True
+    bot_thread.start()
+    
+    # Store the bot and thread in global variables for cleanup
+    global telegram_bot, telegram_bot_thread
+    telegram_bot = bot
+    telegram_bot_thread = bot_thread
+    
+    # Setup signal handlers for clean shutdown
     import signal
     
     def signal_handler(sig, frame):
-        cleanup()
+        print(f"Received signal {sig}, shutting down Telegram bot...")
+        if 'telegram_bot' in globals() and telegram_bot:
+            telegram_bot.stop_polling()
+        if os.path.exists(LOCK_FILE):
+            os.remove(LOCK_FILE)
         sys.exit(0)
     
+    # Register signal handlers
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-else:
-    print("Telegram bot not started.")
+
+# Initialize global variables
+telegram_bot = None
+telegram_bot_thread = None
+
+# Start the Telegram integration after a short delay
+import threading
+threading.Timer(2.0, start_telegram_integration).start()

@@ -23,3 +23,5 @@ def chatbot(state: State):
 graph_builder.add_node("chatbot", chatbot)
 graph_builder.add_edge(START, "chatbot")
 graph_builder.compile()
+# draw the graph
+graph_builder.draw_graph("chatbot.png")

@@ -61,7 +61,8 @@ LLM_MODEL = os.getenv("LLM_MODEL")
 #    model="claude-3-5-sonnet-20240620")
 
 # llm = ChatOpenRouter(model_name="anthropic/claude-3.7-sonnet:thinking")
-llm = ChatOpenRouter(model_name="anthropic/claude-3.5-sonnet:20240620")
+llm = ChatOllama(model="gemma3:27b", temperature=0) if LLM_MODEL == "llama" else ChatOpenRouter(
+    model_name="anthropic/claude-3.5-sonnet:20240620")
 llm_with_tools = llm.bind_tools(tools)
 
 # chatbot node

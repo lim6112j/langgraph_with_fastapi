@@ -341,4 +341,4 @@ telegram_timer.daemon = True
 telegram_timer.start()
 
 # Launch Gradio app last, after setting up everything else
-demo.launch(server_port=8081)
+demo.launch(server_port=8080)

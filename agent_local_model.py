@@ -25,12 +25,15 @@ graph = graph_builder.compile()
 
 def stream_graph_updates(user_input: str):
     for event in graph.stream({"messages": [{"role": "user", "content": user_input}]}):
-        for value in event.values():
-            # Check if value is an instance of AIMessage
-            if isinstance(value, AIMessage):
-                print("Assistant:", value.content)  # Access content directly
-            else:
-                print("Unexpected message type:", value)
+        if "chatbot" in event:
+            # Check if the event contains messages
+
+            # event["chatbot"]["messages"][-1].pretty_print()
+            result = event["chatbot"]["messages"]
+            # Check if message is an instance of AIMessage
+            print("Assistant:", result.content)
+        else:
+            print("No messages in event:", event)
 
 
 while True:

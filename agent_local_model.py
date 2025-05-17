@@ -3,6 +3,7 @@ from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START
 from langgraph.graph.message import add_messages
 from langchain_ollama import ChatOllama
+from langchain.schema import AIMessage  # Ensure this import is present
 
 
 class State(TypedDict):
@@ -25,7 +26,11 @@ graph = graph_builder.compile()
 def stream_graph_updates(user_input: str):
     for event in graph.stream({"messages": [{"role": "user", "content": user_input}]}):
         for value in event.values():
-            print("Assistant:", value["messages"][-1].content)
+            # Check if value is an instance of AIMessage
+            if isinstance(value, AIMessage):
+                print("Assistant:", value.content)  # Access content directly
+            else:
+                print("Unexpected message type:", value)
 
 
 while True:

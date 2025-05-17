@@ -1,5 +1,5 @@
 from langchain_core.messages import SystemMessage
-from messages.messages import template, template_api_automation_agent, template_menu_agent, template_crawl_agent, template_dashboard_agent
+from messages.messages import template, template_local_model_agent, template_api_automation_agent, template_menu_agent, template_crawl_agent, template_dashboard_agent
 
 
 def get_messages_info(messages):
@@ -20,3 +20,7 @@ def get_messages_dashboard_info(messages):
 
 def get_messages_api_automation_info(messages):
     return [SystemMessage(content=template_api_automation_agent)] + messages
+
+
+def get_messages_local_model_info(messages):
+    return [SystemMessage(content=template_local_model_agent)] + messages

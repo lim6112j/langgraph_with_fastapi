@@ -1,17 +1,22 @@
 from langgraph.graph import StateGraph, START
 from langchain_ollama import ChatOllama
-from custom_tool.tools import State, get_data_from_site
+from custom_tool.tools import State
 from langgraph.prebuilt import ToolNode, tools_condition
-
+from helper.funcs import get_messages_local_model_info
+from langchain_community.tools.tavily_search import TavilySearchResults
+from dotenv import load_dotenv
+load_dotenv()
 graph_builder = StateGraph(State)
 llm = ChatOllama(model="llama3.2:latest", temperature=0)
-
-tools = [get_data_from_site]
+tavily = TavilySearchResults(max_results=2)
+tools = [tavily]
 llm_with_tools = llm.bind_tools(tools)
 
 
 def chatbot(state: State):
-    return {"messages": llm.invoke(state["messages"])}
+    messages = get_messages_local_model_info(state["messages"])
+    message = llm_with_tools.invoke(messages)
+    return {"messages": message}
 
 
 graph_builder.add_node("chatbot", chatbot)
@@ -24,6 +29,7 @@ graph_builder.add_conditional_edges(
 )
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge(START, "chatbot")
+
 graph = graph_builder.compile()
 
 
@@ -33,7 +39,7 @@ def stream_graph_updates(user_input: str):
             result = event["chatbot"]["messages"]
             print("Assistant:", result.content)
         else:
-            print("No messages in event:", event)
+            print("=== message not for chatbot ====")
 
 
 while True:

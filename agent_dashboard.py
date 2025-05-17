@@ -69,8 +69,6 @@ llm_with_tools = llm.bind_tools(tools)
 
 def chatbot(state: State):
     messages = get_messages_dashboard_info(state["messages"])
-#    print(f"\nstate[messages] => {state['messages']}\n")
-#    print(f"\n[messages] => {messages}\n")
     message = llm_with_tools.invoke(messages)
     assert len(message.tool_calls) <= 1
     return {"messages": [message]}

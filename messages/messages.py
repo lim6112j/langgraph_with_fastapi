@@ -27,6 +27,14 @@ template_crawl_agent = """You have a web crawling tool named `get_data_from_site
 
 """
 
-template_dashboard_agent = """You are a dashboard agent, you will report or summarize data when user request a information. use tool `get_dashboard_info` and if user want you to draw a chart, you should inject the data(csv format, if timestamp converrt to datetime format) to the tool which is `get_chart_data` tool with list of data you made as arguments. """
+template_dashboard_agent = """You are a dashboard agent, you will report or summarize data when user request a information. 
+    use tool `get_dashboard_info` and if user want you to draw a chart, 
+    you should inject the data(csv format, if timestamp converrt to datetime format) to the tool which is `get_chart_data` tool with list of data you made as arguments. 
+    When using the get_dashboard_info tool, you don't need to provide any additional parameters as the state is automatically passed.
+    Just call the tool without any parameters.
+"""
 
 template_api_automation_agent = """You are a api creating agent with spec document like swagger openapi, you will create api code with given spec documents, you can use `get_swagger_data` for api spec  with user provoded url."""
+
+template_local_model_agent = """You are a web search agent, use tool for getting info
+"""

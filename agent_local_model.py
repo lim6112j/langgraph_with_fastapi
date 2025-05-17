@@ -3,7 +3,7 @@ import sys
 import json
 import uuid
 from langchain_ollama import ChatOllama
-from langchain_core.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferMemory  # Updated import
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import Tool

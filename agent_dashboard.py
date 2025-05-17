@@ -1,3 +1,5 @@
+import threading
+import signal
 from transformers import pipeline
 import pandas as pd
 import sys
@@ -88,8 +90,9 @@ graph_builder.add_conditional_edges(
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge(START, "chatbot")
 
-memory = MemorySaver()
-graph = graph_builder.compile(checkpointer=memory)
+# memory = MemorySaver()
+# graph = graph_builder.compile(checkpointer=memory)
+graph = graph_builder.compile()
 
 # helper function for run_agent
 
@@ -194,17 +197,19 @@ with gr.Blocks() as demo:
 # Telegram bot integration - moved to after Gradio launch to avoid hot-reload conflicts
 
 # Telegram bot integration - moved to a separate function to avoid immediate execution
+
+
 def start_telegram_integration():
     import os.path
     import time
     import threading
-    
+
     # Get token from environment
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     if not TELEGRAM_BOT_TOKEN:
         print("TELEGRAM_BOT_TOKEN not found. Telegram bot not started.")
         return
-    
+
     # Clean up any existing lock file at startup
     LOCK_FILE = "telegram_bot.lock"
     if os.path.exists(LOCK_FILE):
@@ -213,7 +218,7 @@ def start_telegram_integration():
             print("Cleaned up existing lock file at startup")
         except:
             pass
-    
+
     # Check for existing lock file
     if os.path.exists(LOCK_FILE):
         try:
@@ -223,7 +228,7 @@ def start_telegram_integration():
         except Exception as e:
             print(f"Error removing lock file: {e}")
             return
-    
+
     # Create lock file
     try:
         with open(LOCK_FILE, 'w') as f:
@@ -232,22 +237,23 @@ def start_telegram_integration():
     except Exception as e:
         print(f"Error creating lock file: {e}")
         return
-    
+
     # Initialize bot
     bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
-    
+
     # Handler for text messages
     @bot.message_handler(content_types=['text'])
     def handle_text(message):
         try:
             user_input = message.text
-            config = {"configurable": {"thread_id": f"telegram_{message.chat.id}"}}
+            config = {"configurable": {
+                "thread_id": f"telegram_{message.chat.id}"}}
             response = stream_graph_updates(user_input, config)
             bot.reply_to(message, response)
         except Exception as e:
             print(f"Error handling text message: {e}")
             bot.reply_to(message, f"Sorry, an error occurred: {str(e)}")
-    
+
     # Handler for voice messages
     @bot.message_handler(content_types=['voice'])
     def handle_voice(message):
@@ -255,29 +261,31 @@ def start_telegram_integration():
             # Download the voice message
             file_info = bot.get_file(message.voice.file_id)
             downloaded_file = bot.download_file(file_info.file_path)
-            
+
             # Save the voice message temporarily
             voice_file_path = f"temp_voice_{message.chat.id}.ogg"
             with open(voice_file_path, 'wb') as voice_file:
                 voice_file.write(downloaded_file)
-            
+
             # Process with whisper
             transcription = pipe(voice_file_path, generate_kwargs={
-                                "task": "transcribe"}, return_timestamps=True)["text"]
-            
+                "task": "transcribe"}, return_timestamps=True)["text"]
+
             # Get response from agent
-            config = {"configurable": {"thread_id": f"telegram_{message.chat.id}"}}
+            config = {"configurable": {
+                "thread_id": f"telegram_{message.chat.id}"}}
             response = stream_graph_updates(transcription, config)
-            
+
             # Send transcription and response
-            bot.reply_to(message, f"Transcription: {transcription}\n\nResponse: {response}")
-            
+            bot.reply_to(
+                message, f"Transcription: {transcription}\n\nResponse: {response}")
+
             # Clean up
             os.remove(voice_file_path)
         except Exception as e:
             print(f"Error processing voice message: {e}")
             bot.reply_to(message, f"Error processing voice message: {str(e)}")
-    
+
     # Function to run the bot
     def run_bot():
         print("Starting Telegram bot...")
@@ -291,19 +299,20 @@ def start_telegram_integration():
             if os.path.exists(LOCK_FILE):
                 os.remove(LOCK_FILE)
                 print("Removed lock file after bot stopped")
-    
+
     # Start the bot in a separate thread
     bot_thread = threading.Thread(target=run_bot)
     bot_thread.daemon = True
     bot_thread.start()
-    
+
     # Store the bot and thread in global variables for cleanup
     global telegram_bot, telegram_bot_thread
     telegram_bot = bot
     telegram_bot_thread = bot_thread
-    
+
     # We can't set signal handlers in a non-main thread, so we'll use a different approach
     print("Telegram bot started successfully")
+
 
 # Initialize global variables
 telegram_bot = None
@@ -311,7 +320,7 @@ telegram_bot_thread = None
 telegram_lock_file = "telegram_bot.lock"
 
 # Setup signal handlers for clean shutdown in the main thread
-import signal
+
 
 def signal_handler(sig, frame):
     print(f"Received signal {sig}, shutting down Telegram bot...")
@@ -321,12 +330,12 @@ def signal_handler(sig, frame):
         os.remove(telegram_lock_file)
     sys.exit(0)
 
+
 # Register signal handlers in the main thread
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 # Start the Telegram integration after a short delay
-import threading
 telegram_timer = threading.Timer(2.0, start_telegram_integration)
 telegram_timer.daemon = True
 telegram_timer.start()

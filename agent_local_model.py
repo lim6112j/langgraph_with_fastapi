@@ -6,12 +6,14 @@ from langchain.agents import AgentExecutor
 from langchain.agents.agent_toolkits import LangchainToolkit
 from custom_tool.tools import *  # Import your tools here
 
+
 def main():
     # Initialize the language model
-    llm = ChatOllama(model="llama3.2")
+    llm = ChatOllama(model="llama3.2:latest")
 
     # Define your tools
-    tools = [get_routes, get_menus, get_data_from_site]  # Add your specific tools here
+    # Add your specific tools here
+    tools = [get_routes, get_menus, get_data_from_site]
 
     # Create a toolkit
     toolkit = LangchainToolkit(embeddings=OpenAIEmbeddings(), tools=tools)
@@ -31,6 +33,7 @@ def main():
     # Run the agent (you can customize the input as needed)
     response = agent.run("Your input message here")
     print(response)
+
 
 if __name__ == "__main__":
     main()

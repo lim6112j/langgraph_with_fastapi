@@ -113,7 +113,7 @@ def get_data_from_site(state: State, keyword: str):
 
 @tool
 def get_dashboard_info(state: State, tool_call_id: Annotated[str, InjectedToolCallId]):
-    """get dashboard data"""
+    """get dashboard data, no parameter needed"""
     try:
         # Get access token from environment variable
         access_token = os.getenv("CIEL_HELLOBUS_ACCESS_TOKEN")

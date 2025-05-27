@@ -5,3 +5,5 @@ prompt.wav
 *.txt
 .DS_Store
 .aider*
+*.log
+*.lock

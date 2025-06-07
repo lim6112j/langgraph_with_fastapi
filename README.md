@@ -1,3 +1,8 @@
+# how to run agent_dashboard
+source .venv/bin/activate
+nohup python3 agent_dashboard.py > agent_dashboard_output.log 2>&1 &
+ps aux | grep python
+kill pid
 # langgrph_with_fastapi
 
 brew install portaudio
